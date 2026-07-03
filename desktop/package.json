@@ -19,8 +19,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "recharts": "^3.8.1",
-    "tailwindcss": "^4.2.2",
-    "tauri-plugin-sqlite-api": "^0.1.2"
+    "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

@@ -57,7 +57,8 @@ export default function TransactionsScreen() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       setTransactions((data || []).map(fromDB));
-    } catch {
+    } catch (e) {
+      console.error("Failed to load transactions:", e);
     } finally {
       setLoading(false);
       setRefreshing(false);

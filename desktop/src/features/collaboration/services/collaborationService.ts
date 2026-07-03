@@ -26,8 +26,8 @@ async function getDisplayNames(userIds: string[]): Promise<Map<string, string>> 
       (data || []).forEach((p: any) => {
         profileCache.set(p.id, p.display_name || p.email || p.id.substring(0, 8));
       });
-    } catch {
-      // fallback to truncated id
+    } catch (e) {
+      console.warn("Failed to fetch profile data:", e);
     }
   }
   for (const id of userIds) {
@@ -127,11 +127,22 @@ export const getSharedListMembers = async (listId: string): Promise<SharedListMe
 
 export const removeMember = async (listId: string, userId: string): Promise<void> => {
   const currentUserId = await requireUser();
+  const { data: list } = await supabase
+    .from("shared_lists")
+    .select("owner_id")
+    .eq("id", listId)
+    .single();
+
+  if (!list || list.owner_id !== currentUserId) {
+    throw new Error("Only the list owner can remove members.");
+  }
+
   const { error } = await supabase
     .from("shared_list_members")
     .delete()
     .eq("list_id", listId)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .neq("user_id", currentUserId);
 
   if (error) throw error;
   await logActivity(listId, currentUserId, "member_removed", { removed_user_id: userId });
@@ -139,6 +150,16 @@ export const removeMember = async (listId: string, userId: string): Promise<void
 
 export const transferOwnership = async (listId: string, newOwnerId: string): Promise<void> => {
   const currentUserId = await requireUser();
+  const { data: list } = await supabase
+    .from("shared_lists")
+    .select("owner_id")
+    .eq("id", listId)
+    .single();
+
+  if (!list || list.owner_id !== currentUserId) {
+    throw new Error("Only the list owner can transfer ownership.");
+  }
+
   await supabase.from("shared_list_members")
     .update({ role: "member" })
     .eq("list_id", listId)
@@ -196,13 +217,13 @@ export const getInvitations = async (): Promise<Invitation[]> => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const { data, error } = await supabase
-    .from("shared_invitations")
-    .select("*")
-    .or(`invited_email.eq.${user.email},invited_by.eq.${user.id}`)
-    .order("created_at", { ascending: false });
+  const [emailRes, invitedRes] = await Promise.all([
+    supabase.from("shared_invitations").select("*").eq("invited_email", user.email),
+    supabase.from("shared_invitations").select("*").eq("invited_by", user.id),
+  ]);
 
-  if (error) throw error;
+  const data = [...(emailRes.data || []), ...(invitedRes.data || [])];
+  data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const rows = data || [];
   const listIds = [...new Set(rows.map((r: any) => r.list_id))];
@@ -264,7 +285,7 @@ export const acceptInvitation = async (invitationId: string): Promise<void> => {
   if (fetchError || !inv) throw new Error("Invitation not found.");
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (user?.email !== inv.invited_email) throw new Error("This invitation is not for you.");
+  if (user?.email?.toLowerCase() !== inv.invited_email.toLowerCase()) throw new Error("This invitation is not for you.");
 
   const { error: memberError } = await supabase
     .from("shared_list_members")

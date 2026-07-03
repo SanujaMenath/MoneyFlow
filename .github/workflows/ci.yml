@@ -74,8 +74,8 @@ jobs:
         working-directory: desktop
         run: npm run tauri build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://xyftktybsflvbwnppobl.supabase.co' }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5ZnRrdHlic2ZsdmJ3bnBwb2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODk5NTIsImV4cCI6MjA5MTE2NTk1Mn0.dI-28qa9cjaEm7PeQ7t8Ag-qCqWxAjmrQUVnXs9p9cE' }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -110,22 +110,22 @@ jobs:
         working-directory: mobile
         run: npm ci
         env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://xyftktybsflvbwnppobl.supabase.co' }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5ZnRrdHlic2ZsdmJ3bnBwb2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODk5NTIsImV4cCI6MjA5MTE2NTk1Mn0.dI-28qa9cjaEm7PeQ7t8Ag-qCqWxAjmrQUVnXs9p9cE' }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: Prebuild Android project
         working-directory: mobile
         run: npx expo prebuild --platform android --no-install
         env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://xyftktybsflvbwnppobl.supabase.co' }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5ZnRrdHlic2ZsdmJ3bnBwb2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODk5NTIsImV4cCI6MjA5MTE2NTk1Mn0.dI-28qa9cjaEm7PeQ7t8Ag-qCqWxAjmrQUVnXs9p9cE' }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: Build Android APK (arm64-v8a)
         working-directory: mobile/android
         run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
         env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://xyftktybsflvbwnppobl.supabase.co' }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5ZnRrdHlic2ZsdmJ3bnBwb2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODk5NTIsImV4cCI6MjA5MTE2NTk1Mn0.dI-28qa9cjaEm7PeQ7t8Ag-qCqWxAjmrQUVnXs9p9cE' }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

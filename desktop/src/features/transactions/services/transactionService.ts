@@ -159,6 +159,7 @@ export const processRecurringTransactions = async (): Promise<number> => {
       const { data: existing } = await supabase
         .from("transactions")
         .select("date")
+        .eq("user_id", template.user_id)
         .eq("amount", template.amount)
         .eq("type", template.type)
         .eq("category", template.category)

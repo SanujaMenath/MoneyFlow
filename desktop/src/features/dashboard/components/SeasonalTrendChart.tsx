@@ -66,7 +66,7 @@ const SeasonalTrendChart = ({ transactions }: SeasonalTrendChartProps) => {
             tickLine={false}
             tick={{ fill: "#9ca3af", fontSize: 11 }}
             width={72}
-            tickFormatter={(value) => format(value * 100)}
+            tickFormatter={(value) => format(value)}
           />
           <Tooltip
             contentStyle={{

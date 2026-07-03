@@ -28,9 +28,13 @@ const addPeriod = (date: Date, frequency: RecurringFrequency): Date => {
 };
 
 export const getTransactions = async (): Promise<Transaction[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from("transactions")
     .select("*")
+    .eq("user_id", user.id)
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -54,11 +58,15 @@ export const createTransaction = async (data: Transaction) => {
 };
 
 export const deleteTransaction = async (id: number) => {
-  const { error } = await supabase.from("transactions").delete().eq("id", id);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Authentication required.");
+  const { error } = await supabase.from("transactions").delete().eq("id", id).eq("user_id", user.id);
   if (error) throw error;
 };
 
 export const updateTransaction = async (id: number, updates: Partial<Transaction>) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Authentication required.");
   const dbUpdates: any = {};
   if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
   if (updates.type !== undefined) dbUpdates.type = updates.type;
@@ -67,7 +75,7 @@ export const updateTransaction = async (id: number, updates: Partial<Transaction
   if (updates.recurringFrequency !== undefined) dbUpdates.recurring_frequency = updates.recurringFrequency;
   if (updates.recurringEndDate !== undefined) dbUpdates.recurring_end_date = updates.recurringEndDate;
 
-  const { error } = await supabase.from("transactions").update(dbUpdates).eq("id", id);
+  const { error } = await supabase.from("transactions").update(dbUpdates).eq("id", id).eq("user_id", user.id);
   if (error) throw error;
 };
 
@@ -107,6 +115,7 @@ export const processRecurringTransactions = async (): Promise<number> => {
       const { data: existing } = await supabase
         .from("transactions")
         .select("date")
+        .eq("user_id", template.user_id)
         .eq("amount", template.amount)
         .eq("type", template.type)
         .eq("category", template.category)

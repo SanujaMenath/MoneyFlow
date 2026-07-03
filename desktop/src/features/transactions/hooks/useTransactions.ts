@@ -18,7 +18,8 @@ export const useTransactions = () => {
     try {
       const data = await getTransactions();
       setTransactions(data);
-    } catch (error) {
+    } catch {
+      console.error("Failed to fetch transactions");
     } finally {
       setLoading(false);
     }

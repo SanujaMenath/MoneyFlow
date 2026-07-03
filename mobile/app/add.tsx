@@ -55,7 +55,7 @@ export default function AddTransactionScreen() {
       Alert.alert("Error", "Please enter a valid amount greater than 0.");
       return;
     }
-    const finalCategory = category === "Other" && customCategory.trim()
+    const finalCategory = (category === "Other Income" || category === "Other Expense") && customCategory.trim()
       ? customCategory.trim()
       : category;
     if (!finalCategory) {
