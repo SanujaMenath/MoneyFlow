@@ -1,11 +1,10 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   View, Text, FlatList, ActivityIndicator, TouchableOpacity,
   RefreshControl, StyleSheet, Alert, AlertButton, Platform,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
-import { processRecurringTransactions } from "../../services/transactionService";
-import { fromDB } from "../../types/transaction";
+import { processRecurringTransactions, getTransactionsPaginated } from "../../services/transactionService";
 import type { Transaction } from "../../types/transaction";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +12,8 @@ import { useCurrency } from "../../context/CurrencyContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import DatePicker from "../../components/DatePicker";
+
+const PAGE_SIZE = 50;
 
 const PRESETS = [
   { label: "All Time", key: "all" as const },
@@ -44,34 +45,65 @@ export default function TransactionsScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const recurringDone = useRef(false);
 
-  const fetchData = async () => {
+  const fetchPage = useCallback(async (p: number, replace = false) => {
     try {
-      await processRecurringTransactions();
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .order("date", { ascending: false })
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setTransactions((data || []).map(fromDB));
+      if (!recurringDone.current) {
+        await processRecurringTransactions();
+        recurringDone.current = true;
+      }
+      const result = await getTransactionsPaginated(p, PAGE_SIZE);
+      if (replace) {
+        setTransactions(result.data);
+      } else {
+        setTransactions((prev) => {
+          const existingIds = new Set(prev.map((t) => t.id));
+          const newItems = result.data.filter((t) => !existingIds.has(t.id));
+          return [...prev, ...newItems];
+        });
+      }
+      setTotal(result.total);
+      setHasMore(p < result.totalPages);
+      setPage(p);
     } catch {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
-  };
+  }, []);
 
-  useFocusEffect(useCallback(() => { fetchData(); }, []));
+  const refreshData = useCallback(() => {
+    setLoading(true);
+    setPage(1);
+    recurringDone.current = false;
+    fetchPage(1, true);
+  }, [fetchPage]);
+
+  useFocusEffect(useCallback(() => { refreshData(); }, [refreshData]));
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchData();
-  }, []);
+    setPage(1);
+    recurringDone.current = false;
+    fetchPage(1, true);
+  }, [fetchPage]);
+
+  const onEndReached = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      setLoadingMore(true);
+      fetchPage(page + 1, false);
+    }
+  }, [loadingMore, hasMore, page, fetchPage]);
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
@@ -105,7 +137,7 @@ export default function TransactionsScreen() {
       .eq("id", id)
       .eq("user_id", user.id);
     if (error) Alert.alert("Error", error.message);
-    else fetchData();
+    else refreshData();
   };
 
   const handleStopRecurring = async (id: number) => {
@@ -118,7 +150,7 @@ export default function TransactionsScreen() {
       .eq("id", id)
       .eq("user_id", user.id);
     if (error) Alert.alert("Error", error.message);
-    else fetchData();
+    else refreshData();
   };
 
   const showActionMenu = (item: Transaction) => {
@@ -158,7 +190,7 @@ export default function TransactionsScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <Text style={styles.title}>Transactions</Text>
-        <Text style={styles.subtitle}>{filtered.length} of {transactions.length} records</Text>
+        <Text style={styles.subtitle}>{filtered.length} of {total} records</Text>
       </View>
 
       {/* Summary Strip */}
@@ -218,9 +250,11 @@ export default function TransactionsScreen() {
       {/* List */}
       <FlatList
         data={filtered}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 100) }}
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.5}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card} onLongPress={() => showActionMenu(item)} delayLongPress={500} activeOpacity={0.7}>
             <View style={styles.cardLeft}>
@@ -240,6 +274,15 @@ export default function TransactionsScreen() {
             </Text>
           </TouchableOpacity>
         )}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.footerLoader}>
+              <ActivityIndicator size="small" color="#2563eb" />
+            </View>
+          ) : !hasMore && transactions.length > 0 ? (
+            <Text style={styles.footerText}>All transactions loaded</Text>
+          ) : null
+        }
         ListEmptyComponent={<Text style={styles.emptyText}>{isFiltered ? "No transactions found for this date range." : "No transactions yet."}</Text>}
       />
 
@@ -278,5 +321,7 @@ const styles = StyleSheet.create({
   recurringText: { fontSize: 10, color: "#2563eb", fontWeight: "700", marginLeft: 3, textTransform: "uppercase" as const },
   amount: { fontSize: 16, fontWeight: "700" },
   emptyText: { textAlign: "center", marginTop: 40, color: "#94a3b8", fontSize: 15 },
+  footerLoader: { paddingVertical: 20, alignItems: "center" },
+  footerText: { textAlign: "center", paddingVertical: 16, color: "#94a3b8", fontSize: 12 },
   fab: { position: "absolute", right: 20, backgroundColor: "#2563eb", width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center" },
 });

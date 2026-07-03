@@ -34,20 +34,48 @@ const addPeriod = (date: Date, frequency: RecurringFrequency): Date => {
   return result;
 };
 
-export const getTransactions = async (): Promise<Transaction[]> => {
+export interface PaginationResult {
+  data: Transaction[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export const getTransactionCount = async (): Promise<number> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  const { count, error } = await supabase
+    .from("transactions")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  if (error) return 0;
+  return count || 0;
+};
+
+export const getTransactions = async (page = 1, pageSize = 50): Promise<PaginationResult> => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Authentication required.");
 
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("date", { ascending: false })
-    .order("created_at", { ascending: false });
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
-  if (error) throw error;
+  const [listResult, countResult] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(from, to),
+    getTransactionCount(),
+  ]);
 
-  return (data || []).map((r) => ({
+  if (listResult.error) throw listResult.error;
+
+  const data = (listResult.data || []).map((r) => ({
     id: r.id,
     amount: r.amount,
     type: r.type as "income" | "expense",
@@ -57,6 +85,14 @@ export const getTransactions = async (): Promise<Transaction[]> => {
     recurringFrequency: (r.recurring_frequency as RecurringFrequency) || "none",
     recurringEndDate: r.recurring_end_date || null,
   }));
+
+  return {
+    data,
+    total: countResult,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(countResult / pageSize)),
+  };
 };
 
  

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Trash2, Plus, Calendar, FilterX, Clock, XCircle, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Trash2, Plus, Calendar, FilterX, Clock, XCircle, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Transaction } from "../../types/transaction";
 import { useCurrency } from "../../context/CurrencyContext";
 import { getDatePresets } from "../../utils/date";
@@ -10,6 +10,10 @@ interface TransactionsPageProps {
   stopRecurring: (id: number) => Promise<void>;
   onAddClick: () => void;
   loading: boolean;
+  page?: number;
+  totalPages?: number;
+  total?: number;
+  onPageChange?: (page: number) => void;
 }
 
 const TransactionsPage = ({
@@ -18,6 +22,10 @@ const TransactionsPage = ({
   remove,
   stopRecurring,
   loading,
+  page = 1,
+  totalPages = 1,
+  total = 0,
+  onPageChange,
 }: TransactionsPageProps) => {
   const { format } = useCurrency();
   const [startDate, setStartDate] = useState("");
@@ -53,7 +61,6 @@ const TransactionsPage = ({
 
   const isFiltered = startDate !== "" || endDate !== "";
 
-  // Summary stats
   const totalIncome = filteredTransactions
     .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + t.amount, 0);
@@ -63,16 +70,16 @@ const TransactionsPage = ({
     .reduce((sum, t) => sum + t.amount, 0);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
 
       {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="px-6 py-5 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h3 className="font-semibold text-slate-800 text-base tracking-tight">
+          <h3 className="font-semibold text-text-primary text-base tracking-tight">
             Transactions
           </h3>
-          <p className="text-slate-400 text-xs mt-0.5">
-            {filteredTransactions.length} of {transactions.length} records
+          <p className="text-text-secondary text-xs mt-0.5">
+            {filteredTransactions.length} of {total} records
           </p>
         </div>
 
@@ -87,18 +94,18 @@ const TransactionsPage = ({
 
       {/* ── Summary Strip ───────────────────────────────────────────── */}
       {filteredTransactions.length > 0 && (
-        <div className="grid grid-cols-3 divide-x divide-slate-100 border-b border-slate-100">
+        <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
           <div className="px-6 py-3.5 flex flex-col gap-0.5">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Income</span>
-            <span className="text-sm font-semibold text-emerald-600">+ {format(totalIncome)}</span>
+            <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-widest">Income</span>
+            <span className="text-sm font-semibold text-income">+ {format(totalIncome)}</span>
           </div>
           <div className="px-6 py-3.5 flex flex-col gap-0.5">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Expenses</span>
-            <span className="text-sm font-semibold text-rose-500">− {format(totalExpense)}</span>
+            <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-widest">Expenses</span>
+            <span className="text-sm font-semibold text-expense">− {format(totalExpense)}</span>
           </div>
           <div className="px-6 py-3.5 flex flex-col gap-0.5">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Saving</span>
-            <span className={`text-sm font-semibold ${totalIncome - totalExpense >= 0 ? "text-slate-800" : "text-rose-500"}`}>
+            <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-widest">Saving</span>
+            <span className={`text-sm font-semibold ${totalIncome - totalExpense >= 0 ? "text-text-primary" : "text-expense"}`}>
               {totalIncome - totalExpense >= 0 ? "+" : "−"} {format(Math.abs(totalIncome - totalExpense))}
             </span>
           </div>
@@ -106,11 +113,10 @@ const TransactionsPage = ({
       )}
 
       {/* ── Filter Section ──────────────────────────────────────────── */}
-      <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-end gap-4">
+      <div className="px-6 py-4 border-b border-border flex flex-col sm:flex-row sm:items-end gap-4">
 
-        {/* Preset pills */}
         <div className="flex items-center gap-1.5">
-          <Clock size={13} className="text-slate-300 shrink-0" />
+          <Clock size={13} className="text-text-secondary shrink-0" />
           {[
             { label: "All Time", type: "all" as const, active: !startDate && !endDate },
             { label: "This Month", type: "this" as const, active: startDate === presets.thisMonth.start },
@@ -121,8 +127,8 @@ const TransactionsPage = ({
               onClick={() => handlePreset(type)}
               className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all border ${
                 active
-                  ? "bg-navy text-white border-slate-900"
-                  : "bg-white text-slate-500 border-slate-200 hover:border-slate-400 hover:text-slate-700"
+                  ? "bg-navy text-white border-navy"
+                  : "bg-card text-text-secondary border-border hover:border-text-secondary hover:text-text-primary"
               }`}
             >
               {label}
@@ -130,21 +136,20 @@ const TransactionsPage = ({
           ))}
         </div>
 
-        {/* Date inputs */}
         <div className="flex items-end gap-2 ml-auto">
           {(["From", "To"] as const).map((label) => {
             const val = label === "From" ? startDate : endDate;
             const setter = label === "From" ? setStartDate : setEndDate;
             return (
               <div key={label} className="flex flex-col gap-1">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest px-0.5">{label}</span>
+                <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-widest px-0.5">{label}</span>
                 <div className="relative">
-                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={13} />
+                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" size={13} />
                   <input
                     type="date"
                     value={val}
                     onChange={(e) => setter(e.target.value)}
-                    className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-600 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 outline-none transition-all w-36"
+                    className="pl-8 pr-3 py-1.5 bg-card border border-border rounded-lg text-xs text-text-primary focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all w-36"
                   />
                 </div>
               </div>
@@ -154,7 +159,7 @@ const TransactionsPage = ({
           {isFiltered && (
             <button
               onClick={clearFilters}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-rose-400 hover:bg-rose-50 rounded-lg text-xs font-medium transition-colors border border-transparent hover:border-rose-100 mb-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-expense hover:bg-rose-50 rounded-lg text-xs font-medium transition-colors border border-transparent hover:border-rose-100 mb-0"
             >
               <FilterX size={13} />
               Clear
@@ -166,12 +171,12 @@ const TransactionsPage = ({
       {/* ── Table ───────────────────────────────────────────────────── */}
       <div className="overflow-x-auto">
         {loading ? (
-          <div className="py-20 text-center text-slate-400 text-sm animate-pulse">
+          <div className="py-20 text-center text-text-secondary text-sm animate-pulse">
             Loading transactions…
           </div>
         ) : filteredTransactions.length === 0 ? (
           <div className="py-20 text-center">
-            <p className="text-slate-400 text-sm">
+            <p className="text-text-secondary text-sm">
               {isFiltered
                 ? "No transactions found for this date range."
                 : "No transactions yet. Start tracking your cash flow!"}
@@ -180,11 +185,11 @@ const TransactionsPage = ({
         ) : (
           <table className="w-full text-left border-collapse min-w-160">
             <thead>
-              <tr className="border-b border-slate-100">
+              <tr className="border-b border-border">
                 {["Date", "Category", "Type", "Amount", "Recurring", "Actions"].map((h, i) => (
                   <th
                     key={h}
-                    className={`px-5 py-3 text-[10px] font-semibold text-slate-400 uppercase tracking-widest bg-slate-50/60 ${
+                    className={`px-5 py-3 text-[10px] font-semibold text-text-secondary uppercase tracking-widest bg-bg ${
                       i === 3 ? "text-right" : i >= 4 ? "text-center" : ""
                     }`}
                   >
@@ -195,29 +200,25 @@ const TransactionsPage = ({
             </thead>
 
             <tbody>
-              {filteredTransactions.map((t: Transaction, idx) => (
+              {filteredTransactions.map((t: Transaction) => (
                 <tr
                   key={t.id}
-                  className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors group"
-                  style={{ animationDelay: `${idx * 20}ms` }}
+                  className="border-b border-border hover:bg-bg transition-colors group"
                 >
-                  {/* Date */}
-                  <td className="px-5 py-3.5 text-xs text-slate-400 whitespace-nowrap tabular-nums">
+                  <td className="px-5 py-3.5 text-xs text-text-secondary whitespace-nowrap tabular-nums">
                     {t.date}
                   </td>
 
-                  {/* Category */}
                   <td className="px-5 py-3.5">
-                    <span className="text-sm font-medium text-slate-700">{t.category}</span>
+                    <span className="text-sm font-medium text-text-primary">{t.category}</span>
                   </td>
 
-                  {/* Type badge */}
                   <td className="px-5 py-3.5">
                     <span
                       className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-semibold rounded-md tracking-wide ${
                         t.type === "income"
-                          ? "bg-emerald-50 text-emerald-600"
-                          : "bg-rose-50 text-rose-500"
+                          ? "bg-emerald-50 text-income"
+                          : "bg-rose-50 text-expense"
                       }`}
                     >
                       {t.type === "income"
@@ -227,34 +228,31 @@ const TransactionsPage = ({
                     </span>
                   </td>
 
-                  {/* Amount */}
                   <td
                     className={`px-5 py-3.5 text-sm font-semibold text-right whitespace-nowrap tabular-nums ${
-                      t.type === "income" ? "text-emerald-600" : "text-rose-500"
+                      t.type === "income" ? "text-income" : "text-expense"
                     }`}
                   >
                     {t.type === "income" ? "+" : "−"} {format(t.amount)}
                   </td>
 
-                  {/* Recurring */}
                   <td className="px-5 py-3.5 text-center">
                     {t.recurringFrequency && t.recurringFrequency !== "none" ? (
-                      <span className="inline-block bg-slate-100 text-slate-500 text-[10px] font-semibold px-2.5 py-0.5 rounded-full capitalize tracking-wide">
+                      <span className="inline-block bg-slate-100 text-text-secondary text-[10px] font-semibold px-2.5 py-0.5 rounded-full capitalize tracking-wide">
                         {t.recurringFrequency}
                       </span>
                     ) : (
-                      <span className="text-slate-200 text-sm select-none">—</span>
+                      <span className="text-border text-sm select-none">—</span>
                     )}
                   </td>
 
-                  {/* Actions */}
                   <td className="px-5 py-3.5 text-center">
                     <div className="flex items-center justify-center gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
                       {t.recurringFrequency && t.recurringFrequency !== "none" && (
                         <button
                           onClick={() => stopRecurring(t.id!)}
                           title="Stop Recurrence"
-                          className="p-1.5 text-slate-300 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all"
+                          className="p-1.5 text-text-secondary hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all"
                         >
                           <XCircle size={15} />
                         </button>
@@ -262,7 +260,7 @@ const TransactionsPage = ({
                       <button
                         onClick={() => remove(t.id!)}
                         title="Delete Transaction"
-                        className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                        className="p-1.5 text-text-secondary hover:text-expense hover:bg-rose-50 rounded-lg transition-all"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -275,11 +273,46 @@ const TransactionsPage = ({
         )}
       </div>
 
-      {filteredTransactions.length > 0 && (
-        <div className="px-6 py-3 border-t border-slate-100 flex justify-end">
-          <span className="text-[11px] text-slate-300 tabular-nums">
-            {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? "s" : ""}
+      {/* ── Pagination ─────────────────────────────────────────────────── */}
+      {totalPages > 1 && (
+        <div className="px-6 py-3 border-t border-border flex items-center justify-between">
+          <span className="text-[11px] text-text-secondary tabular-nums">
+            Page {page} of {totalPages} ({total} total)
           </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onPageChange?.(page - 1)}
+              disabled={page <= 1}
+              className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-bg rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const startPage = Math.max(1, Math.min(page - 2, totalPages - 4));
+              const p = startPage + i;
+              if (p > totalPages) return null;
+              return (
+                <button
+                  key={p}
+                  onClick={() => onPageChange?.(p)}
+                  className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all ${
+                    p === page
+                      ? "bg-navy text-white"
+                      : "text-text-secondary hover:text-text-primary hover:bg-bg"
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => onPageChange?.(page + 1)}
+              disabled={page >= totalPages}
+              className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-bg rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
       )}
     </div>

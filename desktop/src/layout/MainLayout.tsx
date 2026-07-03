@@ -156,7 +156,7 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Header */}
-        <header className="h-14 lg:h-16 border-b border-border bg-white/90 backdrop-blur-sm flex items-center justify-between px-4 lg:px-8 shrink-0">
+        <header className="h-14 lg:h-16 border-b border-border bg-card/90 backdrop-blur-sm flex items-center justify-between px-4 lg:px-8 shrink-0">
           <div className="flex items-center gap-3">
             {/* Subtle page indicator dot */}
             <span className="w-1.5 h-1.5 rounded-full bg-primary hidden sm:block" />
@@ -173,7 +173,7 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 bg-gray-50/60">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 bg-bg">
           <div className="max-w-6xl mx-auto">
             {children}
           </div>

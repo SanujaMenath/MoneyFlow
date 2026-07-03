@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import MainLayout from "./layout/MainLayout";
 import { supabase } from "./lib/supabase"; 
 import { Auth } from "./features/auth/components/Auth";
-
-import DashboardView from "./features/dashboard/DashboardView";
-import TransactionsPage from "./features/transactions/TransactionsPage";
-import AddTransactionForm from "./features/transactions/AddTransactionForm";
 import { useTransactions } from "./features/transactions/hooks/useTransactions";
-import SettingsPage from "./features/settings/SettingsPage";
-import AnalyticsPage from "./features/analytics/AnalyticsPage";
-import CollaborationPage from "./features/collaboration/CollaborationPage";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+
+const DashboardView = lazy(() => import("./features/dashboard/DashboardView"));
+const TransactionsPage = lazy(() => import("./features/transactions/TransactionsPage"));
+const AddTransactionForm = lazy(() => import("./features/transactions/AddTransactionForm"));
+const SettingsPage = lazy(() => import("./features/settings/SettingsPage"));
+const AnalyticsPage = lazy(() => import("./features/analytics/AnalyticsPage"));
+const CollaborationPage = lazy(() => import("./features/collaboration/CollaborationPage"));
 
 function App() {
   const [session, setSession] = useState<any>(null);
@@ -48,27 +49,43 @@ function App() {
   return (
     <MainLayout activeTab={activeTab} setActiveTab={setActiveTab}>
       <div className="min-w-0 w-full animate-in fade-in duration-500">
-        {activeTab === "Dashboard" && (
-          <DashboardView transactions={tx.transactions} />
-        )}
+        <Suspense fallback={<div className="flex items-center justify-center h-48 text-text-secondary text-sm">Loading...</div>}>
+          {activeTab === "Dashboard" && (
+            <ErrorBoundary>
+              <DashboardView transactions={tx.transactions} />
+            </ErrorBoundary>
+          )}
 
-        {activeTab === "Transactions" && (
-          <TransactionsPage
-            transactions={tx.transactions}
-            remove={tx.remove}
-            stopRecurring={tx.stopRecurring} 
-            loading={tx.loading}
-            onAddClick={handleAddTransaction}
-          />
-        )}
+          {activeTab === "Transactions" && (
+            <ErrorBoundary>
+              <TransactionsPage
+                transactions={tx.transactions}
+                remove={tx.remove}
+                stopRecurring={tx.stopRecurring} 
+                loading={tx.loading}
+                page={tx.page}
+                totalPages={tx.totalPages}
+                total={tx.total}
+                onPageChange={tx.goToPage}
+                onAddClick={handleAddTransaction}
+              />
+            </ErrorBoundary>
+          )}
 
-        {activeTab === "Analytics" && (
-          <AnalyticsPage transactions={tx.transactions} />
-        )}
+          {activeTab === "Analytics" && (
+            <ErrorBoundary>
+              <AnalyticsPage transactions={tx.transactions} />
+            </ErrorBoundary>
+          )}
 
-        {activeTab === "Collaboration" && <CollaborationPage />}
+          {activeTab === "Collaboration" && (
+            <ErrorBoundary><CollaborationPage /></ErrorBoundary>
+          )}
 
-        {activeTab === "Settings" && <SettingsPage />}
+          {activeTab === "Settings" && (
+            <ErrorBoundary><SettingsPage /></ErrorBoundary>
+          )}
+        </Suspense>
       </div>
 
       {/* Modal */}
@@ -82,10 +99,12 @@ function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="overflow-y-auto flex-1 custom-scrollbar">
-              <AddTransactionForm
-                onSave={handleSaveComplete}
-                onClose={handleCloseModal}
-              />
+              <Suspense fallback={<div className="p-8 text-center text-text-secondary">Loading form...</div>}>
+                <AddTransactionForm
+                  onSave={handleSaveComplete}
+                  onClose={handleCloseModal}
+                />
+              </Suspense>
             </div>
           </div>
         </div>
