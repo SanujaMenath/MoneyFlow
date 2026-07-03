@@ -123,7 +123,7 @@ const AddTransactionForm = ({ onClose, onSave }: AddTransactionFormProps) => {
               onClick={() => { setType("income"); setCategory(""); }}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
                 type === "income"
-                  ? "bg-white text-text-income shadow-sm"
+                  ? "bg-white text-income shadow-sm"
                   : "text-text-secondary"
               }`}
             >
@@ -134,7 +134,7 @@ const AddTransactionForm = ({ onClose, onSave }: AddTransactionFormProps) => {
               onClick={() => { setType("expense"); setCategory(""); }}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
                 type === "expense"
-                  ? "bg-white text-text-expense shadow-sm"
+                  ? "bg-white text-expense shadow-sm"
                   : "text-text-secondary"
               }`}
             >

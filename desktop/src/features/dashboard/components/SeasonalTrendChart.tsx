@@ -45,12 +45,7 @@ const SeasonalTrendChart = ({ transactions }: SeasonalTrendChartProps) => {
   }
 
   return (
-    <div className="mt-4">
-      <div className="mb-5">
-        <h4 className="text-text-primary font-bold text-base">Expense Trends</h4>
-        <p className="text-text-secondary text-xs mt-0.5">Category spending over time</p>
-      </div>
-
+    <div>
       <ResponsiveContainer width="100%" height={280}>
         <LineChart data={chartData.data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />

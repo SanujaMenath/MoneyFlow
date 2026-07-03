@@ -26,8 +26,7 @@ async function getDisplayNames(userIds: string[]): Promise<Map<string, string>> 
       (data || []).forEach((p: any) => {
         profileCache.set(p.id, p.display_name || p.email || p.id.substring(0, 8));
       });
-    } catch (e) {
-      console.warn("Failed to fetch profile data:", e);
+    } catch {
     }
   }
   for (const id of userIds) {
@@ -58,19 +57,13 @@ export const createSharedList = async (data: CreateSharedListData): Promise<Shar
     .select()
     .single();
 
-  if (error) {
-    console.error("createSharedList error:", error);
-    throw error;
-  }
+  if (error) throw error;
 
-  // Manually add owner as a member (avoids trigger RLS issues)
   const { error: memberError } = await supabase
     .from("shared_list_members")
     .insert([{ list_id: list.id, user_id: userId, role: "owner" }]);
 
   if (memberError) {
-    console.error("Failed to add owner as member:", memberError);
-    // Clean up the list if member insert fails
     await supabase.from("shared_lists").delete().eq("id", list.id);
     throw memberError;
   }
@@ -80,11 +73,12 @@ export const createSharedList = async (data: CreateSharedListData): Promise<Shar
 };
 
 export const updateSharedList = async (id: string, updates: Partial<SharedList>): Promise<void> => {
-  await requireUser();
+  const userId = await requireUser();
   const { error } = await supabase
     .from("shared_lists")
     .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("owner_id", userId);
 
   if (error) throw error;
 };
@@ -215,7 +209,7 @@ export const inviteUser = async (listId: string, email: string): Promise<void> =
 
 export const getInvitations = async (): Promise<Invitation[]> => {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user || !user.email) return [];
 
   const [emailRes, invitedRes] = await Promise.all([
     supabase.from("shared_invitations").select("*").eq("invited_email", user.email),
@@ -399,8 +393,17 @@ export const updateSharedTransaction = async (id: string, updates: Partial<Share
 
 export const deleteSharedTransaction = async (id: string): Promise<void> => {
   const userId = await requireUser();
-  const { data: tx } = await supabase.from("shared_transactions").select("list_id, amount, category").eq("id", id).single();
+  const { data: tx } = await supabase.from("shared_transactions").select("list_id, creator_id, amount, category").eq("id", id).single();
   if (!tx) throw new Error("Transaction not found.");
+
+  const { data: list } = await supabase.from("shared_lists").select("owner_id").eq("id", tx.list_id).single();
+
+  const isOwner = list?.owner_id === userId;
+  const isCreator = tx.creator_id === userId;
+
+  if (!isOwner && !isCreator) {
+    throw new Error("You don't have permission to delete this transaction.");
+  }
 
   const { error } = await supabase
     .from("shared_transactions")

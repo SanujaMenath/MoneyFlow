@@ -35,9 +35,13 @@ const addPeriod = (date: Date, frequency: RecurringFrequency): Date => {
 };
 
 export const getTransactions = async (): Promise<Transaction[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Authentication required.");
+
   const { data, error } = await supabase
     .from("transactions")
     .select("*")
+    .eq("user_id", user.id)
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -142,8 +146,11 @@ export const processRecurringTransactions = async (): Promise<number> => {
 
       const candidateDates: string[] = [];
       let current = addPeriod(startDate, frequency);
+      let iterations = 0;
+      const MAX_ITERATIONS = 365;
 
-      while (current <= today) {
+      while (current <= today && iterations < MAX_ITERATIONS) {
+        iterations++;
         if (endDate && current > endDate) break;
 
         const dateStr = formatDate(current);

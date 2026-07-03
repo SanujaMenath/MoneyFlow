@@ -102,8 +102,11 @@ export const processRecurringTransactions = async (): Promise<number> => {
 
       const candidateDates: string[] = [];
       let current = addPeriod(startDate, frequency);
+      let iterations = 0;
+      const MAX_ITERATIONS = 365;
 
-      while (current <= today) {
+      while (current <= today && iterations < MAX_ITERATIONS) {
+        iterations++;
         if (endDate && current > endDate) break;
         const dateStr = formatDate(current);
         if (dateStr !== template.date) candidateDates.push(dateStr);

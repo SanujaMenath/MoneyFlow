@@ -15,8 +15,7 @@ export const useCollaboration = () => {
     try {
       const data = await CollabService.getSharedLists();
       setLists(data);
-    } catch (err) {
-      console.error("Failed to load shared lists:", err);
+    } catch {
     }
   }, []);
 
@@ -24,8 +23,7 @@ export const useCollaboration = () => {
     try {
       const data = await CollabService.getInvitations();
       setInvitations(data);
-    } catch (err) {
-      console.error("Failed to load invitations:", err);
+    } catch {
     }
   }, []);
 
@@ -92,8 +90,7 @@ export const useCollaboration = () => {
     try {
       const data = await CollabService.getSharedTransactions(listId);
       setTransactions(data);
-    } catch (err) {
-      console.error("Failed to load shared transactions:", err);
+    } catch {
     } finally {
       setTxLoading(false);
     }

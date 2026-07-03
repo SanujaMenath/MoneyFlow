@@ -14,7 +14,7 @@ const SettingsPage = () => {
       <section className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-3">
           <div className="p-2 bg-emerald-50 rounded-lg">
-            <Target size={18} className="text-text-income" />
+            <Target size={18} className="text-income" />
           </div>
           <div>
             <h3 className="font-bold text-text-primary text-sm sm:text-base">

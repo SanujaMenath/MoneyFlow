@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { fromDB } from '../../types/transaction';
 import type { Transaction } from '../../types/transaction';
 import { useCurrency } from '../../context/CurrencyContext';
+import { processRecurringTransactions } from '../../services/transactionService';
 import AnalyticsDonut from '../../components/AnalyticsDonut';
 import SavingsGoalCard from '../../components/SavingsGoalCard';
 
@@ -25,6 +26,7 @@ export default function DashboardScreen() {
 
   const fetchData = async () => {
     try {
+      await processRecurringTransactions();
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -32,8 +34,7 @@ export default function DashboardScreen() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       setTransactions((data || []).map(fromDB));
-    } catch (e) {
-      console.error("Failed to load dashboard data:", e);
+    } catch {
     } finally {
       setLoading(false);
       setRefreshing(false);

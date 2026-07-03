@@ -7,6 +7,7 @@ import { createTransaction } from "../services/transactionService";
 import type { RecurringFrequency } from "../types/transaction";
 import { incomeCategories, expenseCategories, frequencies } from "../types/transaction";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DatePicker from "../components/DatePicker";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 
@@ -17,6 +18,7 @@ const saveBtnShadow = Platform.select({
 
 export default function AddTransactionScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
@@ -86,8 +88,8 @@ export default function AddTransactionScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={styles.title}>New Transaction</Text>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+      <Text style={[styles.title, { paddingTop: insets.top + 20 }]}>New Transaction</Text>
 
       {/* Type Selector */}
       <View style={styles.row}>
@@ -197,7 +199,7 @@ export default function AddTransactionScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 20 },
-  title: { fontSize: 26, fontWeight: "900", color: "#1e293b", marginVertical: 20, paddingTop: 40 },
+  title: { fontSize: 26, fontWeight: "900", color: "#1e293b", marginVertical: 20 },
   label: { fontSize: 14, fontWeight: "700", color: "#64748b", marginBottom: 10, marginTop: 20, textTransform: "uppercase" as const, letterSpacing: 0.5 },
   input: { borderWidth: 1, borderColor: "#e2e8f0", padding: 16, borderRadius: 14, fontSize: 16, backgroundColor: "#f8fafc" },
   row: { flexDirection: "row", gap: 10, marginBottom: 10 },

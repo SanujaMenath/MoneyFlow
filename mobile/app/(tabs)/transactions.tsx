@@ -10,6 +10,7 @@ import type { Transaction } from "../../types/transaction";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useCurrency } from "../../context/CurrencyContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import DatePicker from "../../components/DatePicker";
 
@@ -39,6 +40,7 @@ const getMonthRange = (offset: number) => {
 export default function TransactionsScreen() {
   const { format } = useCurrency();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,8 +59,7 @@ export default function TransactionsScreen() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       setTransactions((data || []).map(fromDB));
-    } catch (e) {
-      console.error("Failed to load transactions:", e);
+    } catch {
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -155,7 +156,7 @@ export default function TransactionsScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <Text style={styles.title}>Transactions</Text>
         <Text style={styles.subtitle}>{filtered.length} of {transactions.length} records</Text>
       </View>
@@ -242,7 +243,7 @@ export default function TransactionsScreen() {
         ListEmptyComponent={<Text style={styles.emptyText}>{isFiltered ? "No transactions found for this date range." : "No transactions yet."}</Text>}
       />
 
-      <TouchableOpacity style={[styles.fab, fabShadow]} onPress={() => router.push("/add")}>
+      <TouchableOpacity style={[styles.fab, { bottom: Math.max(insets.bottom, 80) }, fabShadow]} onPress={() => router.push("/add")}>
         <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>
     </View>
@@ -252,7 +253,7 @@ export default function TransactionsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8fafc" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 8 },
+  header: { paddingHorizontal: 20, paddingBottom: 8 },
   title: { fontSize: 28, fontWeight: "800", color: "#1e293b" },
   subtitle: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
   summaryRow: { flexDirection: "row", marginHorizontal: 20, marginVertical: 8, backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: "#e2e8f0", overflow: "hidden" },
@@ -277,5 +278,5 @@ const styles = StyleSheet.create({
   recurringText: { fontSize: 10, color: "#2563eb", fontWeight: "700", marginLeft: 3, textTransform: "uppercase" as const },
   amount: { fontSize: 16, fontWeight: "700" },
   emptyText: { textAlign: "center", marginTop: 40, color: "#94a3b8", fontSize: 15 },
-  fab: { position: "absolute", bottom: 20, right: 20, backgroundColor: "#2563eb", width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center" },
+  fab: { position: "absolute", right: 20, backgroundColor: "#2563eb", width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center" },
 });

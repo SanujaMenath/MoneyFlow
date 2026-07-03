@@ -9,6 +9,12 @@ export const Auth = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (password.length < 6) {
+      alert("Password must be at least 6 characters long.");
+      return;
+    }
+
     setLoading(true);
     
     const { error } = isSignUp 

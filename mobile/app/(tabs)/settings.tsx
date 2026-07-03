@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, Alert, StyleSheet, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -6,6 +7,7 @@ import { useSavingsGoal } from '../../context/SavingsGoalContext';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { currency, setCurrency, currencies, format } = useCurrency();
   const { savingsGoalPercent, setSavingsGoalPercent } = useSavingsGoal();
 
@@ -24,7 +26,7 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <Text style={styles.title}>Settings</Text>
       </View>
 
@@ -44,7 +46,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
         <Text style={styles.hint}>
-          {format(Math.round(100000 * savingsGoalPercent / 100))} saved per Rs.1,000 earned
+          Save {savingsGoalPercent}% of every paycheck to reach your goal.
         </Text>
       </View>
 
@@ -81,7 +83,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc', paddingHorizontal: 20 },
-  header: { marginTop: 60, marginBottom: 20 },
+  header: { marginBottom: 20 },
   title: { fontSize: 28, fontWeight: '800', color: '#1e293b' },
   card: { backgroundColor: '#fff', padding: 20, borderRadius: 20, marginTop: 16, borderWidth: 1, borderColor: '#e2e8f0' },
   sectionTitle: { fontSize: 14, fontWeight: '700', color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8 },

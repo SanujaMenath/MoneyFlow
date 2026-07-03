@@ -39,8 +39,7 @@ export const migrateLocalToCloud = async () => {
 
     alert(`Migration Finished!\nMigrated: ${migratedCount}\nSkipped (Duplicates): ${skippedCount}`);
 
-  } catch (e) {
-    console.error("Migration failed:", e);
+  } catch {
     alert("Migration failed. Please check your connection and try again.");
   }
 };

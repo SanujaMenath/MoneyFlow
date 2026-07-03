@@ -146,7 +146,7 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
           <div className="mt-3 flex justify-center lg:justify-start lg:px-2">
             <span className="text-white/20 text-[9px] font-semibold tracking-widest">
               <span className="hidden lg:inline">v1.2.0</span>
-              <span className="lg:hidden">v1.0</span>
+              <span className="lg:hidden">v1.2.0</span>
             </span>
           </div>
         </div>

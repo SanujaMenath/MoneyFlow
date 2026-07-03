@@ -5,24 +5,27 @@ import { fromDB } from "../../types/transaction";
 import type { Transaction } from "../../types/transaction";
 import { useFocusEffect } from "expo-router";
 import { useCurrency } from "../../context/CurrencyContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { processRecurringTransactions } from "../../services/transactionService";
 import CategoryBarChart from "../../components/CategoryBarChart";
 
 export default function AnalyticsScreen() {
   const { format } = useCurrency();
+  const insets = useSafeAreaInsets();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = async () => {
     try {
+      await processRecurringTransactions();
       const { data, error } = await supabase
         .from("transactions")
         .select("*")
         .order("date", { ascending: false });
       if (error) throw error;
       setTransactions((data || []).map(fromDB));
-    } catch (e) {
-      console.error("Failed to load analytics data:", e);
+    } catch {
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -56,7 +59,7 @@ export default function AnalyticsScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} />}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <Text style={styles.title}>Analytics</Text>
       </View>
 
@@ -101,7 +104,7 @@ export default function AnalyticsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8fafc", paddingHorizontal: 20 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { marginTop: 60, marginBottom: 20 },
+  header: { marginBottom: 20 },
   title: { fontSize: 28, fontWeight: "800", color: "#1e293b" },
   card: { backgroundColor: "#fff", padding: 20, borderRadius: 20, marginTop: 16, borderWidth: 1, borderColor: "#e2e8f0" },
   sectionTitle: { fontSize: 14, fontWeight: "700", color: "#64748b", marginBottom: 16, textTransform: "uppercase" as const, letterSpacing: 0.5 },
