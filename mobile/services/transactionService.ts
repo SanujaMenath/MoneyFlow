@@ -27,10 +27,64 @@ const addPeriod = (date: Date, frequency: RecurringFrequency): Date => {
   return result;
 };
 
+export interface PaginationResult {
+  data: Transaction[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export const getTransactionCount = async (): Promise<number> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  const { count, error } = await supabase
+    .from("transactions")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  if (error) return 0;
+  return count || 0;
+};
+
+export const getTransactionsPaginated = async (page = 1, pageSize = 50): Promise<PaginationResult> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { data: [], total: 0, page, pageSize, totalPages: 0 };
+
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const [listResult, countResult] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(from, to),
+    getTransactionCount(),
+  ]);
+
+  if (listResult.error) throw listResult.error;
+
+  return {
+    data: (listResult.data || []).map(fromDB),
+    total: countResult,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(countResult / pageSize)),
+  };
+};
+
 export const getTransactions = async (): Promise<Transaction[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from("transactions")
     .select("*")
+    .eq("user_id", user.id)
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -54,11 +108,15 @@ export const createTransaction = async (data: Transaction) => {
 };
 
 export const deleteTransaction = async (id: number) => {
-  const { error } = await supabase.from("transactions").delete().eq("id", id);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Authentication required.");
+  const { error } = await supabase.from("transactions").delete().eq("id", id).eq("user_id", user.id);
   if (error) throw error;
 };
 
 export const updateTransaction = async (id: number, updates: Partial<Transaction>) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Authentication required.");
   const dbUpdates: any = {};
   if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
   if (updates.type !== undefined) dbUpdates.type = updates.type;
@@ -67,7 +125,7 @@ export const updateTransaction = async (id: number, updates: Partial<Transaction
   if (updates.recurringFrequency !== undefined) dbUpdates.recurring_frequency = updates.recurringFrequency;
   if (updates.recurringEndDate !== undefined) dbUpdates.recurring_end_date = updates.recurringEndDate;
 
-  const { error } = await supabase.from("transactions").update(dbUpdates).eq("id", id);
+  const { error } = await supabase.from("transactions").update(dbUpdates).eq("id", id).eq("user_id", user.id);
   if (error) throw error;
 };
 
@@ -94,8 +152,11 @@ export const processRecurringTransactions = async (): Promise<number> => {
 
       const candidateDates: string[] = [];
       let current = addPeriod(startDate, frequency);
+      let iterations = 0;
+      const MAX_ITERATIONS = 365;
 
-      while (current <= today) {
+      while (current <= today && iterations < MAX_ITERATIONS) {
+        iterations++;
         if (endDate && current > endDate) break;
         const dateStr = formatDate(current);
         if (dateStr !== template.date) candidateDates.push(dateStr);
@@ -107,6 +168,7 @@ export const processRecurringTransactions = async (): Promise<number> => {
       const { data: existing } = await supabase
         .from("transactions")
         .select("date")
+        .eq("user_id", template.user_id)
         .eq("amount", template.amount)
         .eq("type", template.type)
         .eq("category", template.category)

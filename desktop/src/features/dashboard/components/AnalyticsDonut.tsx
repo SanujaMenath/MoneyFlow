@@ -54,7 +54,7 @@ const AnalyticsDonut = ({ income, expenses }: AnalyticsDonutProps) => {
             Saved
           </span>
           <span
-            className={`text-4xl font-black ${savingsRate >= 0 ? "text-text-income" : "text-text-expense"}`}
+            className={`text-4xl font-black ${savingsRate >= 0 ? "text-income" : "text-expense"}`}
           >
             {savingsRate}%
           </span>

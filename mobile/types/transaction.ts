@@ -1,15 +1,9 @@
-export type RecurringFrequency = "none" | "daily" | "weekly" | "monthly" | "yearly";
+import type { Transaction, RecurringFrequency } from "@moneyflow/shared";
+import { incomeCategories, expenseCategories, categoryI18nKeys } from "@moneyflow/shared/constants/categories";
+import { frequencies } from "@moneyflow/shared/constants/frequencies";
 
-export interface Transaction {
-  id?: number;
-  amount: number;
-  type: "income" | "expense";
-  category: string;
-  date: string;
-  createdAt: string;
-  recurringFrequency?: RecurringFrequency;
-  recurringEndDate?: string | null;
-}
+export type { Transaction, RecurringFrequency };
+export { incomeCategories, expenseCategories, frequencies, categoryI18nKeys };
 
 export interface TransactionDB {
   id: number;
@@ -22,24 +16,6 @@ export interface TransactionDB {
   recurring_end_date?: string | null;
   user_id?: string;
 }
-
-export const incomeCategories = [
-  "Salary", "Freelance", "Investment", "Business", "Gift", "Other Income",
-] as const;
-
-export const expenseCategories = [
-  "Food & Dining", "Transport", "Housing & Rent", "Bills & Utilities",
-  "Shopping", "Healthcare", "Entertainment", "Education", "Travel",
-  "Installments/Loans", "Other Expense",
-] as const;
-
-export const frequencies: { value: RecurringFrequency; label: string }[] = [
-  { value: "none", label: "One-time" },
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" },
-  { value: "yearly", label: "Yearly" },
-];
 
 export const toDB = (t: Transaction): any => ({
   amount: t.amount,

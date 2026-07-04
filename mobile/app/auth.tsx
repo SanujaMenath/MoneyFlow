@@ -9,10 +9,12 @@ import {
   KeyboardAvoidingView, 
   Platform,
   ScrollView,
-  ActivityIndicator
+  ActivityIndicator,
+  StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import { useTranslation } from "react-i18next";
 
 const buttonShadow = Platform.select({
   web: { boxShadow: "0 4px 8px rgba(37,99,235,0.2)" },
@@ -20,6 +22,7 @@ const buttonShadow = Platform.select({
 });
 
 export default function AuthScreen() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,7 +31,12 @@ export default function AuthScreen() {
 
   async function handleAuth() {
     if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
+      Alert.alert(t("common.error"), t("auth.fillAllFields"));
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert(t("common.error"), t("auth.passwordTooShort"));
       return;
     }
 
@@ -45,11 +53,11 @@ export default function AuthScreen() {
           }),
         }
       });
-      if (error) Alert.alert("Sign Up Error", error.message);
-      else Alert.alert("Success", "Check your email for the confirmation link!");
+      if (error) Alert.alert(t("auth.signUp"), error.message);
+      else Alert.alert(t("common.success"), t("auth.checkEmail"));
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) Alert.alert("Login Error", error.message);
+      if (error) Alert.alert(t("auth.signIn"), error.message);
     }
     
     setLoading(false);
@@ -62,16 +70,16 @@ export default function AuthScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
-          <Text style={styles.title}>MoneyFlow</Text>
+          <Text style={styles.title}>{t("auth.moneyFlow")}</Text>
           <Text style={styles.subtitle}>
-            {isSignUp ? 'Create an account to start tracking' : 'Welcome back, let’s manage your flow'}
+            {isSignUp ? t("auth.signUpTitle") : t("auth.signInTitle")}
           </Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.label}>Email Address</Text>
+          <Text style={styles.label}>{t("auth.emailLabel")}</Text>
           <TextInput 
-            placeholder="e.g. sanuja@example.com" 
+            placeholder={t("auth.emailPlaceholder")} 
             style={styles.input} 
             value={email}
             onChangeText={setEmail} 
@@ -79,10 +87,10 @@ export default function AuthScreen() {
             keyboardType="email-address"
           />
 
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t("auth.passwordLabel")}</Text>
           <View style={styles.passwordContainer}>
             <TextInput 
-              placeholder="Your secure password" 
+              placeholder={t("auth.passwordPlaceholder")} 
               style={styles.passwordInput}
               secureTextEntry={!showPassword}
               value={password}
@@ -108,7 +116,7 @@ export default function AuthScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>{isSignUp ? 'Sign Up' : 'Sign In'}</Text>
+              <Text style={styles.buttonText}>{isSignUp ? t("auth.signUp") : t("auth.signIn")}</Text>
             )}
           </TouchableOpacity>
 
@@ -118,8 +126,8 @@ export default function AuthScreen() {
           >
             <Text style={styles.toggleText}>
               {isSignUp 
-                ? 'Already have an account? Sign In' 
-                : "Don't have an account? Sign Up"}
+                ? t("auth.goToSignIn") 
+                : t("auth.goToSignUp")}
             </Text>
           </TouchableOpacity>
         </View>

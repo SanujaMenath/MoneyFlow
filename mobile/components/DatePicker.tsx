@@ -1,5 +1,6 @@
 import React from "react";
 import { Platform, View, TouchableOpacity, Text, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function DatePicker({ value, onChange, show, onClose }: Props) {
+  const { t } = useTranslation();
   if (!show) return null;
 
   if (Platform.OS === "web") {
@@ -36,7 +38,7 @@ export default function DatePicker({ value, onChange, show, onClose }: Props) {
           }}
         />
         <TouchableOpacity style={styles.doneBtn} onPress={onClose}>
-          <Text style={styles.doneText}>Done</Text>
+          <Text style={styles.doneText}>{t("common.done")}</Text>
         </TouchableOpacity>
       </View>
     );

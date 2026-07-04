@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
+import '../lib/i18n';
 import AuthScreen from './auth';
 import { CurrencyProvider } from '../context/CurrencyContext';
 import { SavingsGoalProvider } from '../context/SavingsGoalContext';
@@ -44,6 +45,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="add" options={{ presentation: 'modal', headerShown: true, title: 'New Transaction' }} />
+          <Stack.Screen name="+not-found" />
         </Stack>
       </SavingsGoalProvider>
     </CurrencyProvider>

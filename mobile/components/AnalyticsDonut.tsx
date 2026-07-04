@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Svg, { Path, G } from "react-native-svg";
+import { useTranslation } from "react-i18next";
 import { useCurrency } from "../context/CurrencyContext";
 
 interface Props {
@@ -21,6 +22,7 @@ function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
 }
 
 export default function AnalyticsDonut({ income, expenses }: Props) {
+  const { t } = useTranslation();
   const { format } = useCurrency();
   const total = income + expenses;
   const incomeRatio = total > 0 ? income / total : 0.5;
@@ -53,19 +55,19 @@ export default function AnalyticsDonut({ income, expenses }: Props) {
           </Svg>
           <View style={styles.centerLabel}>
             <Text style={styles.savingsRateText}>{savingsRate}%</Text>
-            <Text style={styles.savingsLabel}>savings</Text>
+            <Text style={styles.savingsLabel}>{t("components.savings")}</Text>
           </View>
         </View>
 
         <View style={styles.legend}>
           <View style={styles.legendItem}>
             <View style={[styles.dot, { backgroundColor: "#10b981" }]} />
-            <Text style={styles.legendLabel}>Income</Text>
+            <Text style={styles.legendLabel}>{t("components.income")}</Text>
             <Text style={styles.legendValue}>{format(income)}</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.dot, { backgroundColor: "#ef4444" }]} />
-            <Text style={styles.legendLabel}>Expenses</Text>
+            <Text style={styles.legendLabel}>{t("components.expenses")}</Text>
             <Text style={styles.legendValue}>{format(expenses)}</Text>
           </View>
         </View>
@@ -73,8 +75,8 @@ export default function AnalyticsDonut({ income, expenses }: Props) {
 
       <Text style={styles.insight}>
         {savingsRate > 20
-          ? "Great savings rate! Consider investing your surplus."
-          : "Try to save at least 20% of your income."}
+          ? t("components.greatSavingsRate")
+          : t("components.saveAtLeast20")}
       </Text>
     </View>
   );

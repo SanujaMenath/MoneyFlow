@@ -25,13 +25,13 @@ const SavingsGoalCard = ({ income, expenses }: SavingsGoalCardProps) => {
 
   let status = {
     label: "Needs attention",
-    color: "text-text-expense",
+    color: "text-expense",
     bg: "bg-rose-500",
   };
   if (progress >= 100) {
     status = {
       label: "On track",
-      color: "text-text-income",
+      color: "text-income",
       bg: "bg-emerald-500",
     };
   } else if (progress >= 50) {
@@ -85,7 +85,7 @@ const SavingsGoalCard = ({ income, expenses }: SavingsGoalCardProps) => {
         <div>
           <p className="text-xs text-text-secondary mb-1">Actually Saved</p>
           <p
-            className={`text-lg font-bold ${actuallySaved >= goalAmount ? "text-text-income" : "text-text-primary"}`}
+            className={`text-lg font-bold ${actuallySaved >= goalAmount ? "text-income" : "text-text-primary"}`}
           >
             {format(actuallySaved)}
           </p>
@@ -105,7 +105,7 @@ const SavingsGoalCard = ({ income, expenses }: SavingsGoalCardProps) => {
             {actuallySaved < goalAmount ? (
               <>
                 You are
-                <span className="font-bold text-text-expense">
+                <span className="font-bold text-expense">
                   {format(goalAmount - actuallySaved)}
                 </span>
                 away from your goal
@@ -114,7 +114,7 @@ const SavingsGoalCard = ({ income, expenses }: SavingsGoalCardProps) => {
             ) : (
               <>
                 Goal met! You saved
-                <span className="font-bold text-text-income">
+                <span className="font-bold text-income">
                   {format(actuallySaved - goalAmount)}
                 </span>
                 extra

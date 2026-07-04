@@ -1,0 +1,33 @@
+{
+  "name": "moneyflow-monorepo",
+  "private": true,
+  "version": "1.2.0",
+  "workspaces": [
+    "shared",
+    "desktop",
+    "mobile"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w shared",
+    "dev:desktop": "npm run dev -w desktop",
+    "dev:mobile": "npm start -w mobile",
+    "test": "npm run test -w shared && npm run test -w desktop",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "build:e2e": "npm run export:web -w mobile",
+    "pretest:e2e": "npm run build:e2e",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,css,md}\""
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "prettier": "^3.5.0",
+    "serve": "^14.2.6",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.62.1"
+  }
+}

@@ -6,6 +6,8 @@
   --color-accent: #06B6D4;
   --color-income: #22C55E;
   --color-expense: #F43F5E;
+  --color-text-income: #16A34A;
+  --color-text-expense: #DC2626;
 
   --color-bg: #F9FAFB;
   --color-card: #FFFFFF;
@@ -15,10 +17,120 @@
   --color-text-secondary: #6B7280;
 }
 
+.dark {
+  --color-navy: #0B1A2E;
+  --color-primary: #3B82F6;
+  --color-accent: #22D3EE;
+  --color-income: #22C55E;
+  --color-expense: #F43F5E;
+  --color-text-income: #4ADE80;
+  --color-text-expense: #F87171;
+
+  --color-bg: #0F172A;
+  --color-card: #1E293B;
+  --color-border: #334155;
+
+  --color-text-primary: #F1F5F9;
+  --color-text-secondary: #94A3B8;
+}
+
+.dark body {
+  background-color: #0F172A;
+  color: #F1F5F9;
+}
+
+.dark .bg-white {
+  background-color: var(--color-card);
+}
+
+.dark .bg-gray-50,
+.dark .bg-gray-50\/60 {
+  background-color: #1E293B;
+}
+
+.dark .bg-slate-50\/60 {
+  background-color: #1E293B;
+}
+
+.dark .text-slate-800 {
+  color: #F1F5F9;
+}
+
+.dark .text-slate-700 {
+  color: #E2E8F0;
+}
+
+.dark .text-slate-400 {
+  color: #94A3B8;
+}
+
+.dark .text-slate-500 {
+  color: #94A3B8;
+}
+
+.dark .border-slate-100,
+.dark .border-slate-200 {
+  border-color: #334155;
+}
+
+.dark .divide-slate-50,
+.dark .divide-slate-100 {
+  border-color: #334155;
+}
+
+.dark .hover\:bg-slate-50\/60:hover {
+  background-color: #1E293B;
+}
+
+.dark .bg-white\/90 {
+  background-color: rgba(30, 41, 59, 0.9);
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #1E293B;
+  border-color: #334155;
+  color: #F1F5F9;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748B;
+}
+
+.dark .bg-emerald-50 {
+  background-color: rgba(34, 197, 94, 0.1);
+}
+
+.dark .bg-rose-50 {
+  background-color: rgba(244, 63, 94, 0.1);
+}
+
+.dark .bg-blue-50 {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.dark .bg-purple-50 {
+  background-color: rgba(168, 85, 247, 0.1);
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   height: 6px;
+  width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #E5E7EB;
   border-radius: 10px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }

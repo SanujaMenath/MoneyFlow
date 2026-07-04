@@ -11,8 +11,8 @@ interface StatsCardProps {
 const StatsCard = ({ title, amount, type = "balance", icon: Icon }: StatsCardProps) => {
 
   const getTextColor = () => {
-    if (type === "income") return "text-text-income";
-    if (type === "expense") return "text-text-expense";
+    if (type === "income") return "text-income";
+    if (type === "expense") return "text-expense";
     return "text-text-primary"; 
   };
 

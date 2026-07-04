@@ -17,21 +17,27 @@ const SeasonalTrendChart = ({ transactions }: SeasonalTrendChartProps) => {
   const { format } = useCurrency();
 
   const chartData = useMemo(() => {
-    const monthlyData: Record<string, Record<string, number | string>> = {};
+    const monthlyData: Record<number, Record<string, number | string>> = {};
     const categories = new Set<string>();
 
     transactions
       .filter((t) => t.type === "expense")
       .forEach((t) => {
-        const month = new Date(t.date).toLocaleString("default", { month: "short" });
-        if (!monthlyData[month]) monthlyData[month] = { name: month };
-        monthlyData[month][t.category] =
-          ((monthlyData[month][t.category] as number) || 0) + t.amount;
+        const d = new Date(t.date);
+        const monthIdx = d.getMonth();
+        if (!monthlyData[monthIdx]) {
+          monthlyData[monthIdx] = {
+            name: d.toLocaleString("default", { month: "short" }),
+            _order: monthIdx,
+          };
+        }
+        monthlyData[monthIdx][t.category] =
+          ((monthlyData[monthIdx][t.category] as number) || 0) + t.amount;
         categories.add(t.category);
       });
 
     return {
-      data: Object.values(monthlyData),
+      data: Object.values(monthlyData).sort((a, b) => (a._order as number) - (b._order as number)),
       keys: Array.from(categories),
     };
   }, [transactions]);
@@ -45,12 +51,7 @@ const SeasonalTrendChart = ({ transactions }: SeasonalTrendChartProps) => {
   }
 
   return (
-    <div className="mt-4">
-      <div className="mb-5">
-        <h4 className="text-text-primary font-bold text-base">Expense Trends</h4>
-        <p className="text-text-secondary text-xs mt-0.5">Category spending over time</p>
-      </div>
-
+    <div>
       <ResponsiveContainer width="100%" height={280}>
         <LineChart data={chartData.data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
@@ -66,7 +67,7 @@ const SeasonalTrendChart = ({ transactions }: SeasonalTrendChartProps) => {
             tickLine={false}
             tick={{ fill: "#9ca3af", fontSize: 11 }}
             width={72}
-            tickFormatter={(value) => format(value * 100)}
+            tickFormatter={(value) => format(value)}
           />
           <Tooltip
             contentStyle={{

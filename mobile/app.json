@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MoneyFlowMobile",
+    "name": "MoneyFlow",
     "slug": "MoneyFlowMobile",
     "version": "1.2.0",
     "orientation": "portrait",
@@ -14,7 +14,20 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "icon": {
+        "light": "./assets/images/icon.png",
+        "dark": "./assets/images/icon.png",
+        "tinted": "./assets/images/icon.png"
+      },
+      "infoPlist": {
+        "UIRequiresFullScreen": false,
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait"
+        ],
+        "UIViewControllerBasedStatusBarAppearance": true
+      },
+      "bundleIdentifier": "com.moneyflow.MoneyFlowMobile"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,8 +35,9 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.MoneyFlowMobile"
+      "predictiveBackGestureEnabled": true,
+      "package": "com.moneyflow.MoneyFlowMobile",
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "bundler": "metro",

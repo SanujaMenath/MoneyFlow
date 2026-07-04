@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { supabase } from '../../../lib/supabase';
 
+const MIN_AUTH_INTERVAL_MS = 2000;
+let lastAuthAttempt = 0;
+
 export const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -9,6 +12,19 @@ export const Auth = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (password.length < 6) {
+      alert("Password must be at least 6 characters long.");
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastAuthAttempt < MIN_AUTH_INTERVAL_MS) {
+      alert("Please wait a moment before trying again.");
+      return;
+    }
+    lastAuthAttempt = now;
+
     setLoading(true);
     
     const { error } = isSignUp 
@@ -20,8 +36,8 @@ export const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl border border-border shadow-sm">
+    <div className="min-h-screen flex items-center justify-center bg-bg p-4">
+      <div className="max-w-md w-full space-y-8 bg-card p-8 rounded-2xl border border-border shadow-sm">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-text-primary">MoneyFlow Cloud</h2>
           <p className="text-text-secondary mt-2">
@@ -32,7 +48,7 @@ export const Auth = () => {
           <input
             type="email"
             placeholder="Email address"
-            className="w-full px-4 py-3 rounded-xl border border-border outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full px-4 py-3 rounded-xl border border-border outline-none focus:ring-2 focus:ring-primary/20 bg-card text-text-primary"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -40,7 +56,7 @@ export const Auth = () => {
           <input
             type="password"
             placeholder="Password"
-            className="w-full px-4 py-3 rounded-xl border border-border outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full px-4 py-3 rounded-xl border border-border outline-none focus:ring-2 focus:ring-primary/20 bg-card text-text-primary"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -48,14 +64,25 @@ export const Auth = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-sm"
+            className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {loading ? "Processing..." : isSignUp ? "Sign Up" : "Sign In"}
+            {loading ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <span>Please wait...</span>
+              </>
+            ) : (
+              isSignUp ? "Sign Up" : "Sign In"
+            )}
           </button>
         </form>
         <button 
           onClick={() => setIsSignUp(!isSignUp)}
-          className="w-full text-xs text-text-secondary hover:text-primary transition-colors"
+          disabled={loading}
+          className="w-full text-xs text-text-secondary hover:text-primary transition-colors disabled:opacity-50"
         >
           {isSignUp ? "Already have an account? Sign In" : "Need an account? Sign Up"}
         </button>

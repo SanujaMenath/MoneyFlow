@@ -214,6 +214,9 @@ CREATE POLICY "shared_invitations_insert" ON shared_invitations
 CREATE POLICY "shared_invitations_update" ON shared_invitations
   FOR UPDATE USING (
     invited_email IN (SELECT email FROM auth.users WHERE id = auth.uid())
+  ) WITH CHECK (
+    invited_email IN (SELECT email FROM auth.users WHERE id = auth.uid())
+    AND status IN ('accepted', 'declined')
   );
 
 -- Shared Transactions: members can CRUD

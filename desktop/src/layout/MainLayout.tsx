@@ -22,59 +22,62 @@ const topMenuItems: { name: TabName; icon: React.ElementType; label: string }[] 
   { name: "Collaboration", icon: Users,          label: "Collaboration" },
 ];
 
-const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
-  const NavBtn = ({
-    name,
-    icon: Icon,
-    label,
-  }: {
-    name: TabName;
-    icon: React.ElementType;
-    label: string;
-  }) => {
-    const isActive = activeTab === name;
-    return (
-      <button
-        onClick={() => setActiveTab(name)}
-        title={label}
+const NavBtn = ({
+  name,
+  icon: Icon,
+  label,
+  activeTab,
+  setActiveTab,
+}: {
+  name: TabName;
+  icon: React.ElementType;
+  label: string;
+  activeTab: TabName;
+  setActiveTab: (tab: TabName) => void;
+}) => {
+  const isActive = activeTab === name;
+  return (
+    <button
+      onClick={() => setActiveTab(name)}
+      title={label}
+      className={`
+        group relative flex items-center justify-center lg:justify-start gap-3
+        px-2 lg:px-3.5 py-2.5 rounded-xl transition-all duration-200 w-full
+        ${isActive
+          ? "bg-white/15 text-white shadow-inner"
+          : "text-white/40 hover:text-white/80 hover:bg-white/8"
+        }
+      `}
+    >
+      {isActive && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-5 bg-white rounded-r-full" />
+      )}
+
+      <span
         className={`
-          group relative flex items-center justify-center lg:justify-start gap-3
-          px-2 lg:px-3.5 py-2.5 rounded-xl transition-all duration-200 w-full
+          flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-all duration-200
           ${isActive
-            ? "bg-white/15 text-white shadow-inner"
-            : "text-white/40 hover:text-white/80 hover:bg-white/8"
+            ? "bg-white/20 text-white"
+            : "text-white/40 group-hover:text-white/70 group-hover:bg-white/10"
           }
         `}
       >
-        {/* Active left accent bar */}
-        {isActive && (
-          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-5 bg-white rounded-r-full" />
-        )}
+        <Icon size={17} />
+      </span>
 
-        <span
-          className={`
-            flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-all duration-200
-            ${isActive
-              ? "bg-white/20 text-white"
-              : "text-white/40 group-hover:text-white/70 group-hover:bg-white/10"
-            }
-          `}
-        >
-          <Icon size={17} />
-        </span>
+      <span
+        className={`
+          font-medium text-sm hidden lg:block tracking-wide transition-all duration-200
+          ${isActive ? "text-white" : "text-white/50 group-hover:text-white/80"}
+        `}
+      >
+        {label}
+      </span>
+    </button>
+  );
+};
 
-        <span
-          className={`
-            font-medium text-sm hidden lg:block tracking-wide transition-all duration-200
-            ${isActive ? "text-white" : "text-white/50 group-hover:text-white/80"}
-          `}
-        >
-          {label}
-        </span>
-      </button>
-    );
-  };
-
+const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
   return (
     <div className="h-screen flex bg-bg text-text-primary overflow-hidden">
 
@@ -127,7 +130,7 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
         {/*  Top nav  */}
         <nav className="flex flex-col gap-1 px-2">
           {topMenuItems.map((item) => (
-            <NavBtn key={item.name} name={item.name} icon={item.icon} label={item.label} />
+            <NavBtn key={item.name} name={item.name} icon={item.icon} label={item.label} activeTab={activeTab} setActiveTab={setActiveTab} />
           ))}
         </nav>
 
@@ -140,13 +143,13 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
             System
           </p>
 
-          <NavBtn name="Settings" icon={Settings} label="Settings" />
+          <NavBtn name="Settings" icon={Settings} label="Settings" activeTab={activeTab} setActiveTab={setActiveTab} />
 
           {/* Version */}
           <div className="mt-3 flex justify-center lg:justify-start lg:px-2">
             <span className="text-white/20 text-[9px] font-semibold tracking-widest">
               <span className="hidden lg:inline">v1.2.0</span>
-              <span className="lg:hidden">v1.0</span>
+              <span className="lg:hidden">v1.2.0</span>
             </span>
           </div>
         </div>
@@ -156,7 +159,7 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Header */}
-        <header className="h-14 lg:h-16 border-b border-border bg-white/90 backdrop-blur-sm flex items-center justify-between px-4 lg:px-8 shrink-0">
+        <header className="h-14 lg:h-16 border-b border-border bg-card/90 backdrop-blur-sm flex items-center justify-between px-4 lg:px-8 shrink-0">
           <div className="flex items-center gap-3">
             {/* Subtle page indicator dot */}
             <span className="w-1.5 h-1.5 rounded-full bg-primary hidden sm:block" />
@@ -173,7 +176,7 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 bg-gray-50/60">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 bg-bg">
           <div className="max-w-6xl mx-auto">
             {children}
           </div>

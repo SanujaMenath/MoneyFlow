@@ -1,27 +1,34 @@
 import { useState, useCallback, useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from "react-native";
 import { supabase } from "../../lib/supabase";
+import { useTranslation } from "react-i18next";
 import { fromDB } from "../../types/transaction";
 import type { Transaction } from "../../types/transaction";
 import { useFocusEffect } from "expo-router";
 import { useCurrency } from "../../context/CurrencyContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { processRecurringTransactions } from "../../services/transactionService";
 import CategoryBarChart from "../../components/CategoryBarChart";
 
 export default function AnalyticsScreen() {
+  const { t } = useTranslation();
   const { format } = useCurrency();
+  const insets = useSafeAreaInsets();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = async () => {
     try {
+      await processRecurringTransactions();
       const { data, error } = await supabase
         .from("transactions")
         .select("*")
         .order("date", { ascending: false });
       if (error) throw error;
       setTransactions((data || []).map(fromDB));
-    } catch {
+    } catch (err) {
+      console.error("Failed to fetch analytics data:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -55,39 +62,39 @@ export default function AnalyticsScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} />}
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>Analytics</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <Text style={styles.title}>{t("analytics.title")}</Text>
       </View>
 
       {/* Category Breakdown */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Expenses by Category</Text>
+        <Text style={styles.sectionTitle}>{t("analytics.expensesByCategory")}</Text>
         <CategoryBarChart data={categoryData} />
       </View>
 
       {/* Key Insights */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Key Spending Insights</Text>
+        <Text style={styles.sectionTitle}>{t("analytics.keyInsights")}</Text>
         {topTwo.length > 0 && (
           <>
             <View style={styles.insightRow}>
-              <Text style={styles.insightLabel}>Biggest Expense</Text>
+              <Text style={styles.insightLabel}>{t("analytics.biggestExpense")}</Text>
               <Text style={styles.insightValue}>{topTwo[0].category}</Text>
-              <Text style={styles.insightPct}>{biggestPct}% of total</Text>
+              <Text style={styles.insightPct}>{biggestPct}{t("analytics.percentOfTotal")}</Text>
             </View>
             {topTwo.length > 1 && (
               <View style={styles.insightRow}>
-                <Text style={styles.insightLabel}>Second Biggest</Text>
+                <Text style={styles.insightLabel}>{t("analytics.secondBiggest")}</Text>
                 <Text style={styles.insightValue}>{topTwo[1].category}</Text>
                 <Text style={styles.insightPct}>
-                  {Math.round((topTwo[1].amount / totalSpend) * 100)}% of total
+                  {Math.round((topTwo[1].amount / totalSpend) * 100)}{t("analytics.percentOfTotal")}
                 </Text>
               </View>
             )}
           </>
         )}
         <View style={[styles.insightRow, { borderBottomWidth: 0 }]}>
-          <Text style={styles.insightLabel}>Total Tracked Spend</Text>
+          <Text style={styles.insightLabel}>{t("analytics.totalTrackedSpend")}</Text>
           <Text style={[styles.insightValue, { color: "#ef4444", fontSize: 18 }]}>{format(totalSpend)}</Text>
         </View>
       </View>
@@ -100,7 +107,7 @@ export default function AnalyticsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8fafc", paddingHorizontal: 20 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { marginTop: 60, marginBottom: 20 },
+  header: { marginBottom: 20 },
   title: { fontSize: 28, fontWeight: "800", color: "#1e293b" },
   card: { backgroundColor: "#fff", padding: 20, borderRadius: 20, marginTop: 16, borderWidth: 1, borderColor: "#e2e8f0" },
   sectionTitle: { fontSize: 14, fontWeight: "700", color: "#64748b", marginBottom: 16, textTransform: "uppercase" as const, letterSpacing: 0.5 },

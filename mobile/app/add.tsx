@@ -5,8 +5,10 @@ import {
 } from "react-native";
 import { createTransaction } from "../services/transactionService";
 import type { RecurringFrequency } from "../types/transaction";
-import { incomeCategories, expenseCategories, frequencies } from "../types/transaction";
+import { incomeCategories, expenseCategories, frequencies, categoryI18nKeys } from "../types/transaction";
+import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DatePicker from "../components/DatePicker";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 
@@ -17,6 +19,8 @@ const saveBtnShadow = Platform.select({
 
 export default function AddTransactionScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
@@ -32,6 +36,7 @@ export default function AddTransactionScreen() {
   const categories = type === "income" ? incomeCategories : expenseCategories;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCategory("");
     setCustomCategory("");
   }, [type]);
@@ -52,14 +57,14 @@ export default function AddTransactionScreen() {
   async function handleSave() {
     const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      Alert.alert("Error", "Please enter a valid amount greater than 0.");
+      Alert.alert(t("common.error"), t("add.invalidAmount"));
       return;
     }
-    const finalCategory = category === "Other" && customCategory.trim()
+    const finalCategory = (category === "Other Income" || category === "Other Expense") && customCategory.trim()
       ? customCategory.trim()
       : category;
     if (!finalCategory) {
-      Alert.alert("Error", "Please select a category.");
+      Alert.alert(t("common.error"), t("add.selectCategory"));
       return;
     }
 
@@ -75,19 +80,19 @@ export default function AddTransactionScreen() {
         recurringEndDate: endDate ? endDate.toISOString().split("T")[0] : null,
       });
 
-      Alert.alert("Success", "Transaction recorded!", [
-        { text: "OK", onPress: () => router.back() },
+      Alert.alert(t("common.success"), t("add.recorded"), [
+        { text: t("common.ok"), onPress: () => router.back() },
       ]);
     } catch (error: any) {
-      Alert.alert("Error", error.message);
+      Alert.alert(t("common.error"), error.message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={styles.title}>New Transaction</Text>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+      <Text style={[styles.title, { paddingTop: insets.top + 20 }]}>{t("add.title")}</Text>
 
       {/* Type Selector */}
       <View style={styles.row}>
@@ -95,28 +100,28 @@ export default function AddTransactionScreen() {
           style={[styles.typeBtn, type === "expense" && styles.expenseActive]}
           onPress={() => setType("expense")}
         >
-          <Text style={[styles.typeText, type === "expense" && styles.whiteText]}>Expense</Text>
+          <Text style={[styles.typeText, type === "expense" && styles.whiteText]}>{t("add.expense")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.typeBtn, type === "income" && styles.incomeActive]}
           onPress={() => setType("income")}
         >
-          <Text style={[styles.typeText, type === "income" && styles.whiteText]}>Income</Text>
+          <Text style={[styles.typeText, type === "income" && styles.whiteText]}>{t("add.income")}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Amount */}
-      <Text style={styles.label}>Amount</Text>
+      <Text style={styles.label}>{t("add.amount")}</Text>
       <TextInput
         style={styles.input}
-        placeholder="0.00"
+        placeholder={t("add.amountPlaceholder")}
         keyboardType="decimal-pad"
         value={amount}
         onChangeText={setAmount}
       />
 
       {/* Category */}
-      <Text style={styles.label}>Category</Text>
+      <Text style={styles.label}>{t("add.category")}</Text>
       <View style={styles.categoryGrid}>
         {categories.map((cat) => (
           <TouchableOpacity
@@ -131,7 +136,7 @@ export default function AddTransactionScreen() {
             }}
           >
             <Text style={[styles.categoryChipText, category === cat && styles.whiteText]}>
-              {cat}
+              {t(categoryI18nKeys[cat])}
             </Text>
           </TouchableOpacity>
         ))}
@@ -139,14 +144,14 @@ export default function AddTransactionScreen() {
       {(category === "Other Income" || category === "Other Expense" || category === "Other") && (
         <TextInput
           style={[styles.input, { marginTop: 10 }]}
-          placeholder="Type custom category..."
+          placeholder={t("add.customCategoryPlaceholder")}
           value={customCategory}
           onChangeText={setCustomCategory}
         />
       )}
 
       {/* Date */}
-      <Text style={styles.label}>Date</Text>
+      <Text style={styles.label}>{t("add.date")}</Text>
       <TouchableOpacity
         style={styles.datePicker}
         onPress={() => (Platform.OS === "android" ? showAndroidPicker(false) : setShowDatePicker(true))}
@@ -158,7 +163,7 @@ export default function AddTransactionScreen() {
       )}
 
       {/* Recurring Frequency */}
-      <Text style={styles.label}>Recurring</Text>
+      <Text style={styles.label}>{t("add.recurring")}</Text>
       <View style={styles.frequencyRow}>
         {frequencies.map((f) => (
           <TouchableOpacity
@@ -166,7 +171,7 @@ export default function AddTransactionScreen() {
             style={[styles.freqBtn, frequency === f.value && styles.freqActive]}
             onPress={() => setFrequency(f.value)}
           >
-            <Text style={[styles.freqText, frequency === f.value && styles.whiteText]}>{f.label}</Text>
+            <Text style={[styles.freqText, frequency === f.value && styles.whiteText]}>{t(f.key)}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -174,12 +179,12 @@ export default function AddTransactionScreen() {
       {/* Recurring End Date */}
       {frequency !== "none" && (
         <>
-          <Text style={styles.label}>End Date (optional)</Text>
+          <Text style={styles.label}>{t("add.endDate")}</Text>
           <TouchableOpacity
             style={styles.datePicker}
             onPress={() => (Platform.OS === "android" ? showAndroidPicker(true) : setShowEndDatePicker(true))}
           >
-            <Text style={styles.dateText}>{endDate ? endDate.toDateString() : "No end date"}</Text>
+            <Text style={styles.dateText}>{endDate ? endDate.toDateString() : t("add.noEndDate")}</Text>
           </TouchableOpacity>
           {Platform.OS !== "android" && showEndDatePicker && (
             <DatePicker value={endDate || new Date()} onChange={(d) => setEndDate(d)} show={showEndDatePicker} onClose={() => setShowEndDatePicker(false)} />
@@ -189,7 +194,7 @@ export default function AddTransactionScreen() {
 
       {/* Save */}
       <TouchableOpacity style={[styles.saveBtn, saveBtnShadow]} onPress={handleSave} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Transaction</Text>}
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t("add.save")}</Text>}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -197,7 +202,7 @@ export default function AddTransactionScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 20 },
-  title: { fontSize: 26, fontWeight: "900", color: "#1e293b", marginVertical: 20, paddingTop: 40 },
+  title: { fontSize: 26, fontWeight: "900", color: "#1e293b", marginVertical: 20 },
   label: { fontSize: 14, fontWeight: "700", color: "#64748b", marginBottom: 10, marginTop: 20, textTransform: "uppercase" as const, letterSpacing: 0.5 },
   input: { borderWidth: 1, borderColor: "#e2e8f0", padding: 16, borderRadius: 14, fontSize: 16, backgroundColor: "#f8fafc" },
   row: { flexDirection: "row", gap: 10, marginBottom: 10 },

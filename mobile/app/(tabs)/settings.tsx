@@ -1,11 +1,15 @@
 import { View, Text, TouchableOpacity, Alert, StyleSheet, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from "react-i18next";
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useSavingsGoal } from '../../context/SavingsGoalContext';
 
 export default function SettingsScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { currency, setCurrency, currencies, format } = useCurrency();
   const { savingsGoalPercent, setSavingsGoalPercent } = useSavingsGoal();
 
@@ -14,7 +18,7 @@ export default function SettingsScreen() {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     } catch (error: any) {
-      Alert.alert("Sign Out Error", error.message);
+      Alert.alert(t("settings.signOut"), error.message);
     }
   }
 
@@ -24,14 +28,14 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Settings</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <Text style={styles.title}>{t("settings.title")}</Text>
       </View>
 
       {/* Savings Goal */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Savings Goal</Text>
-        <Text style={styles.description}>Set a percentage of your income to save each month.</Text>
+        <Text style={styles.sectionTitle}>{t("settings.savingsGoal")}</Text>
+        <Text style={styles.description}>{t("settings.savingsGoalDesc")}</Text>
         <View style={styles.goalRow}>
           <TouchableOpacity style={styles.goalBtn} onPress={() => adjustGoal(-5)}>
             <Text style={styles.goalBtnText}>-5%</Text>
@@ -44,13 +48,13 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
         <Text style={styles.hint}>
-          {format(Math.round(100000 * savingsGoalPercent / 100))} saved per Rs.1,000 earned
+          {t("settings.savePercent", { percent: savingsGoalPercent })}
         </Text>
       </View>
 
       {/* Currency */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Currency</Text>
+        <Text style={styles.sectionTitle}>{t("settings.currency")}</Text>
         <View style={styles.currencyGrid}>
           {currencies.map((c) => (
             <TouchableOpacity
@@ -71,7 +75,7 @@ export default function SettingsScreen() {
 
       {/* Sign Out */}
       <TouchableOpacity onPress={handleSignOut} style={styles.signOutBtn}>
-        <Text style={styles.signOutText}>Sign Out</Text>
+        <Text style={styles.signOutText}>{t("settings.signOut")}</Text>
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
@@ -81,7 +85,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc', paddingHorizontal: 20 },
-  header: { marginTop: 60, marginBottom: 20 },
+  header: { marginBottom: 20 },
   title: { fontSize: 28, fontWeight: '800', color: '#1e293b' },
   card: { backgroundColor: '#fff', padding: 20, borderRadius: 20, marginTop: 16, borderWidth: 1, borderColor: '#e2e8f0' },
   sectionTitle: { fontSize: 14, fontWeight: '700', color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8 },

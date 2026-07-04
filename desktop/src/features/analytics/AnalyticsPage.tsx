@@ -102,7 +102,7 @@ const AnalyticsPage = ({ transactions }: { transactions: Transaction[] }) => {
                   <TrendingDown size={14} />
                   <span>Total tracked spend</span>
                 </div>
-                <span className="text-sm font-bold text-text-expense">
+                <span className="text-sm font-bold text-expense">
                   {format(totalSpend)}
                 </span>
               </div>

@@ -35,6 +35,8 @@ const AddTransactionForm = ({ onClose, onSave }: AddTransactionFormProps) => {
   const [date, setDate] = useState(today);
   const [recurringFrequency, setRecurringFrequency] = useState<RecurringFrequency>("none");
   const [recurringEndDate, setRecurringEndDate] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const availableCategories = useMemo(() => {
     return type === "income" ? incomeCategories : expenseCategories;
@@ -42,6 +44,7 @@ const AddTransactionForm = ({ onClose, onSave }: AddTransactionFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError("");
 
     const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
@@ -59,16 +62,23 @@ const AddTransactionForm = ({ onClose, onSave }: AddTransactionFormProps) => {
       recurringEndDate: recurringEndDate || null,
     };
 
-    await createTransaction(transactionData);
-    onSave(transactionData);
-
-    setAmount("");
-    setCategory("");
-    setDate(today);
-    setType("expense");
-    setRecurringFrequency("none");
-    setRecurringEndDate("");
-    onClose();
+    setSaving(true);
+    try {
+      const saved = await createTransaction(transactionData);
+      onSave(saved);
+      setAmount("");
+      setCategory("");
+      setDate(today);
+      setType("expense");
+      setRecurringFrequency("none");
+      setRecurringEndDate("");
+      onClose();
+    } catch (e) {
+      console.error("Failed to save transaction:", e);
+      setError("Failed to save transaction. Please check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -113,7 +123,7 @@ const AddTransactionForm = ({ onClose, onSave }: AddTransactionFormProps) => {
               onClick={() => { setType("income"); setCategory(""); }}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
                 type === "income"
-                  ? "bg-white text-text-income shadow-sm"
+                  ? "bg-white text-income shadow-sm"
                   : "text-text-secondary"
               }`}
             >
@@ -124,7 +134,7 @@ const AddTransactionForm = ({ onClose, onSave }: AddTransactionFormProps) => {
               onClick={() => { setType("expense"); setCategory(""); }}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
                 type === "expense"
-                  ? "bg-white text-text-expense shadow-sm"
+                  ? "bg-white text-expense shadow-sm"
                   : "text-text-secondary"
               }`}
             >
@@ -179,6 +189,13 @@ const AddTransactionForm = ({ onClose, onSave }: AddTransactionFormProps) => {
           </select>
         </div>
 
+        {/* Error message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+            {error}
+          </div>
+        )}
+
         {/* Recurring End Date */}
         {recurringFrequency !== "none" && (
           <div className="flex flex-col gap-1.5">
@@ -209,9 +226,10 @@ const AddTransactionForm = ({ onClose, onSave }: AddTransactionFormProps) => {
           </button>
           <button
             type="submit"
-            className="flex-1 bg-navy text-white px-4 py-3 rounded-xl font-bold hover:shadow-lg hover:shadow-blue-500/20 transition-all text-sm sm:text-base"
+            disabled={saving}
+            className="flex-1 bg-navy text-white px-4 py-3 rounded-xl font-bold hover:shadow-lg hover:shadow-blue-500/20 transition-all text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save Transaction
+            {saving ? "Saving..." : "Save Transaction"}
           </button>
         </div>
       </form>

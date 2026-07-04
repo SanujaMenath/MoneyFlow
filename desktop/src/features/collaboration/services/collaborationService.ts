@@ -1,4 +1,5 @@
 import { supabase } from "../../../lib/supabase";
+import { computeSplits, type SplitMethod } from "@moneyflow/shared/utils/splits";
 import type {
   SharedList, SharedListMember, Invitation, SharedTransaction,
   TransactionSplit, ActivityLog, CreateSharedListData,
@@ -12,11 +13,16 @@ async function requireUser(): Promise<string> {
   return user.id;
 }
 
-const profileCache = new Map<string, string>();
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const profileCache = new Map<string, { name: string; cachedAt: number }>();
 
 async function getDisplayNames(userIds: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  const uncached = userIds.filter((id) => !profileCache.has(id));
+  const now = Date.now();
+  const uncached = userIds.filter((id) => {
+    const entry = profileCache.get(id);
+    return !entry || (now - entry.cachedAt) > CACHE_TTL_MS;
+  });
   if (uncached.length > 0) {
     try {
       const { data } = await supabase
@@ -24,14 +30,18 @@ async function getDisplayNames(userIds: string[]): Promise<Map<string, string>> 
         .select("id, display_name, email")
         .in("id", uncached);
       (data || []).forEach((p: any) => {
-        profileCache.set(p.id, p.display_name || p.email || p.id.substring(0, 8));
+        profileCache.set(p.id, {
+          name: p.display_name || p.email || p.id.substring(0, 8),
+          cachedAt: now,
+        });
       });
-    } catch {
-      // fallback to truncated id
+    } catch (err) {
+      console.error("Failed to fetch profile names:", err);
     }
   }
   for (const id of userIds) {
-    map.set(id, profileCache.get(id) || id.substring(0, 8));
+    const entry = profileCache.get(id);
+    map.set(id, entry ? entry.name : id.substring(0, 8));
   }
   return map;
 }
@@ -58,19 +68,13 @@ export const createSharedList = async (data: CreateSharedListData): Promise<Shar
     .select()
     .single();
 
-  if (error) {
-    console.error("createSharedList error:", error);
-    throw error;
-  }
+  if (error) throw error;
 
-  // Manually add owner as a member (avoids trigger RLS issues)
   const { error: memberError } = await supabase
     .from("shared_list_members")
     .insert([{ list_id: list.id, user_id: userId, role: "owner" }]);
 
   if (memberError) {
-    console.error("Failed to add owner as member:", memberError);
-    // Clean up the list if member insert fails
     await supabase.from("shared_lists").delete().eq("id", list.id);
     throw memberError;
   }
@@ -80,11 +84,12 @@ export const createSharedList = async (data: CreateSharedListData): Promise<Shar
 };
 
 export const updateSharedList = async (id: string, updates: Partial<SharedList>): Promise<void> => {
-  await requireUser();
+  const userId = await requireUser();
   const { error } = await supabase
     .from("shared_lists")
     .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("owner_id", userId);
 
   if (error) throw error;
 };
@@ -127,11 +132,22 @@ export const getSharedListMembers = async (listId: string): Promise<SharedListMe
 
 export const removeMember = async (listId: string, userId: string): Promise<void> => {
   const currentUserId = await requireUser();
+  const { data: list } = await supabase
+    .from("shared_lists")
+    .select("owner_id")
+    .eq("id", listId)
+    .single();
+
+  if (!list || list.owner_id !== currentUserId) {
+    throw new Error("Only the list owner can remove members.");
+  }
+
   const { error } = await supabase
     .from("shared_list_members")
     .delete()
     .eq("list_id", listId)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .neq("user_id", currentUserId);
 
   if (error) throw error;
   await logActivity(listId, currentUserId, "member_removed", { removed_user_id: userId });
@@ -139,6 +155,16 @@ export const removeMember = async (listId: string, userId: string): Promise<void
 
 export const transferOwnership = async (listId: string, newOwnerId: string): Promise<void> => {
   const currentUserId = await requireUser();
+  const { data: list } = await supabase
+    .from("shared_lists")
+    .select("owner_id")
+    .eq("id", listId)
+    .single();
+
+  if (!list || list.owner_id !== currentUserId) {
+    throw new Error("Only the list owner can transfer ownership.");
+  }
+
   await supabase.from("shared_list_members")
     .update({ role: "member" })
     .eq("list_id", listId)
@@ -194,15 +220,15 @@ export const inviteUser = async (listId: string, email: string): Promise<void> =
 
 export const getInvitations = async (): Promise<Invitation[]> => {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user || !user.email) return [];
 
-  const { data, error } = await supabase
-    .from("shared_invitations")
-    .select("*")
-    .or(`invited_email.eq.${user.email},invited_by.eq.${user.id}`)
-    .order("created_at", { ascending: false });
+  const [emailRes, invitedRes] = await Promise.all([
+    supabase.from("shared_invitations").select("*").eq("invited_email", user.email),
+    supabase.from("shared_invitations").select("*").eq("invited_by", user.id),
+  ]);
 
-  if (error) throw error;
+  const data = [...(emailRes.data || []), ...(invitedRes.data || [])];
+  data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const rows = data || [];
   const listIds = [...new Set(rows.map((r: any) => r.list_id))];
@@ -264,13 +290,44 @@ export const acceptInvitation = async (invitationId: string): Promise<void> => {
   if (fetchError || !inv) throw new Error("Invitation not found.");
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (user?.email !== inv.invited_email) throw new Error("This invitation is not for you.");
+  if (user?.email?.toLowerCase() !== inv.invited_email.toLowerCase()) throw new Error("This invitation is not for you.");
 
   const { error: memberError } = await supabase
     .from("shared_list_members")
     .insert([{ list_id: inv.list_id, user_id: userId, role: "member" }]);
 
   if (memberError) throw memberError;
+
+  await logActivity(inv.list_id, userId, "member_joined", {});
+};
+
+export const acceptInvitationByToken = async (token: string): Promise<void> => {
+  const userId = await requireUser();
+
+  const { data: inv, error } = await supabase
+    .from("shared_invitations")
+    .select("id, list_id, invited_email, status")
+    .eq("token", token)
+    .single();
+
+  if (error || !inv) throw new Error("Invitation not found or expired.");
+  if (inv.status !== "pending") throw new Error("Invitation has already been responded to.");
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email || user.email.toLowerCase() !== inv.invited_email.toLowerCase()) {
+    throw new Error("This invitation was sent to a different email address.");
+  }
+
+  const { error: memberError } = await supabase
+    .from("shared_list_members")
+    .insert([{ list_id: inv.list_id, user_id: userId, role: "member" }]);
+
+  if (memberError) throw memberError;
+
+  await supabase
+    .from("shared_invitations")
+    .update({ status: "accepted", responded_at: new Date().toISOString() })
+    .eq("id", inv.id);
 
   await logActivity(inv.list_id, userId, "member_joined", {});
 };
@@ -363,23 +420,61 @@ export const createSharedTransaction = async (data: CreateSharedTransactionData)
   };
 };
 
-export const updateSharedTransaction = async (id: string, updates: Partial<SharedTransaction>): Promise<void> => {
+export const updateSharedTransaction = async (
+  id: string,
+  updates: Partial<SharedTransaction> & { splits?: CreateSharedTransactionData["splits"] },
+): Promise<void> => {
   const userId = await requireUser();
+
+  const txUpdates: Record<string, unknown> = { ...updates, updated_at: new Date().toISOString() };
+  delete txUpdates.splits;
+  delete txUpdates.list_id;
+
   const { error } = await supabase
     .from("shared_transactions")
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update(txUpdates)
     .eq("id", id);
 
   if (error) throw error;
 
-  const { data: tx } = await supabase.from("shared_transactions").select("list_id").eq("id", id).single();
-  if (tx) await logActivity(tx.list_id, userId, "expense_edited", { transaction_id: id });
+  if (updates.splits) {
+    const { data: txMeta } = await supabase
+      .from("shared_transactions")
+      .select("amount, split_method")
+      .eq("id", id)
+      .single();
+
+    if (txMeta) {
+      await supabase.from("shared_transaction_splits").delete().eq("transaction_id", id);
+
+      const splitAmounts = computeSplits(txMeta.amount, txMeta.split_method as SplitMethod, updates.splits);
+      const newSplits = splitAmounts.map((s) => ({
+        transaction_id: id,
+        user_id: s.user_id,
+        amount: s.amount,
+        percentage: s.percentage || null,
+      }));
+      await supabase.from("shared_transaction_splits").insert(newSplits);
+    }
+  }
+
+  const { data: txRecord } = await supabase.from("shared_transactions").select("list_id").eq("id", id).single();
+  if (txRecord) await logActivity(txRecord.list_id, userId, "expense_edited", { transaction_id: id });
 };
 
 export const deleteSharedTransaction = async (id: string): Promise<void> => {
   const userId = await requireUser();
-  const { data: tx } = await supabase.from("shared_transactions").select("list_id, amount, category").eq("id", id).single();
+  const { data: tx } = await supabase.from("shared_transactions").select("list_id, creator_id, amount, category").eq("id", id).single();
   if (!tx) throw new Error("Transaction not found.");
+
+  const { data: list } = await supabase.from("shared_lists").select("owner_id").eq("id", tx.list_id).single();
+
+  const isOwner = list?.owner_id === userId;
+  const isCreator = tx.creator_id === userId;
+
+  if (!isOwner && !isCreator) {
+    throw new Error("You don't have permission to delete this transaction.");
+  }
 
   const { error } = await supabase
     .from("shared_transactions")
@@ -422,13 +517,19 @@ export const getBalanceSummary = async (listId: string): Promise<BalanceSummary[
   const memberMap = new Map(members.map((m) => [m.user_id, m.display_name]));
   const splits: Record<string, { user_id: string; amount: number }[]> = {};
 
-  for (const tx of transactions) {
-    const { data } = await supabase
+  if (transactions.length > 0) {
+    const txIds = transactions.map((t) => t.id);
+    const { data: allSplits } = await supabase
       .from("shared_transaction_splits")
-      .select("user_id, amount")
-      .eq("transaction_id", tx.id);
+      .select("transaction_id, user_id, amount")
+      .in("transaction_id", txIds);
 
-    if (data) splits[tx.id] = data;
+    if (allSplits) {
+      for (const s of allSplits) {
+        if (!splits[s.transaction_id]) splits[s.transaction_id] = [];
+        splits[s.transaction_id].push({ user_id: s.user_id, amount: s.amount });
+      }
+    }
   }
 
   const paid: Record<string, number> = {};
@@ -520,35 +621,6 @@ export const getActivityLogs = async (listId: string): Promise<ActivityLog[]> =>
   }));
 };
 
-// ─── Helpers ──────────────────────────────────────────────────
-function computeSplits(
-  totalAmount: number,
-  method: "equal" | "custom" | "percentage",
-  splits: { user_id: string; amount?: number; percentage?: number }[]
-): { user_id: string; amount: number; percentage: number | null }[] {
-  if (method === "equal") {
-    const perPerson = Math.floor(totalAmount / splits.length);
-    const remainder = totalAmount - perPerson * splits.length;
-    return splits.map((s, i) => ({
-      user_id: s.user_id,
-      amount: perPerson + (i === 0 ? remainder : 0),
-      percentage: null,
-    }));
-  }
-
-  if (method === "percentage") {
-    return splits.map((s) => ({
-      user_id: s.user_id,
-      amount: Math.round(totalAmount * ((s.percentage || 0) / 100)),
-      percentage: s.percentage || null,
-    }));
-  }
-
-  return splits.map((s) => ({
-    user_id: s.user_id,
-    amount: s.amount || 0,
-    percentage: null,
-  }));
-}
+// computeSplits is imported from @moneyflow/shared/utils/splits
 
 

@@ -1,22 +1,25 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   View, Text, FlatList, ActivityIndicator, TouchableOpacity,
   RefreshControl, StyleSheet, Alert, AlertButton, Platform,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
-import { processRecurringTransactions } from "../../services/transactionService";
-import { fromDB } from "../../types/transaction";
+import { processRecurringTransactions, getTransactionsPaginated } from "../../services/transactionService";
 import type { Transaction } from "../../types/transaction";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { useCurrency } from "../../context/CurrencyContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import DatePicker from "../../components/DatePicker";
 
-const PRESETS = [
-  { label: "All Time", key: "all" as const },
-  { label: "This Month", key: "this" as const },
-  { label: "Last Month", key: "last" as const },
+const PAGE_SIZE = 50;
+
+const PRESETS = (t: (key: string) => string) => [
+  { label: t("transactions.allTime"), key: "all" as const },
+  { label: t("transactions.thisMonth"), key: "this" as const },
+  { label: t("transactions.lastMonth"), key: "last" as const },
 ];
 
 const fabShadow = Platform.select({
@@ -37,39 +40,73 @@ const getMonthRange = (offset: number) => {
 };
 
 export default function TransactionsScreen() {
+  const { t } = useTranslation();
   const { format } = useCurrency();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const recurringDone = useRef(false);
 
-  const fetchData = async () => {
+  const fetchPage = useCallback(async (p: number, replace = false) => {
     try {
-      await processRecurringTransactions();
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .order("date", { ascending: false })
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setTransactions((data || []).map(fromDB));
-    } catch {
+      if (!recurringDone.current) {
+        await processRecurringTransactions();
+        recurringDone.current = true;
+      }
+      const result = await getTransactionsPaginated(p, PAGE_SIZE);
+      if (replace) {
+        setTransactions(result.data);
+      } else {
+        setTransactions((prev) => {
+          const existingIds = new Set(prev.map((t) => t.id));
+          const newItems = result.data.filter((t) => !existingIds.has(t.id));
+          return [...prev, ...newItems];
+        });
+      }
+      setTotal(result.total);
+      setHasMore(p < result.totalPages);
+      setPage(p);
+    } catch (err) {
+      console.error("Failed to fetch transactions:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
-  };
+  }, []);
 
-  useFocusEffect(useCallback(() => { fetchData(); }, []));
+  const refreshData = useCallback(() => {
+    setLoading(true);
+    setPage(1);
+    recurringDone.current = false;
+    fetchPage(1, true);
+  }, [fetchPage]);
+
+  useFocusEffect(useCallback(() => { refreshData(); }, [refreshData]));
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchData();
-  }, []);
+    setPage(1);
+    recurringDone.current = false;
+    fetchPage(1, true);
+  }, [fetchPage]);
+
+  const onEndReached = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      setLoadingMore(true);
+      fetchPage(page + 1, false);
+    }
+  }, [loadingMore, hasMore, page, fetchPage]);
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
@@ -95,28 +132,28 @@ export default function TransactionsScreen() {
 
   const handleDelete = async (id: number) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { Alert.alert("Error", "You must be signed in to delete transactions."); return; }
+    if (!user) { Alert.alert(t("common.error"), t("transactions.mustBeSignedInDelete")); return; }
 
     const { error } = await supabase
       .from("transactions")
       .delete()
       .eq("id", id)
       .eq("user_id", user.id);
-    if (error) Alert.alert("Error", error.message);
-    else fetchData();
+    if (error) Alert.alert(t("common.error"), error.message);
+    else refreshData();
   };
 
   const handleStopRecurring = async (id: number) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { Alert.alert("Error", "You must be signed in."); return; }
+    if (!user) { Alert.alert(t("common.error"), t("transactions.mustBeSignedIn")); return; }
 
     const { error } = await supabase
       .from("transactions")
       .update({ recurring_frequency: "none" })
       .eq("id", id)
       .eq("user_id", user.id);
-    if (error) Alert.alert("Error", error.message);
-    else fetchData();
+    if (error) Alert.alert(t("common.error"), error.message);
+    else refreshData();
   };
 
   const showActionMenu = (item: Transaction) => {
@@ -125,26 +162,26 @@ export default function TransactionsScreen() {
     }
     const buttons: AlertButton[] = [
       {
-        text: "Delete", style: "destructive",
+        text: t("common.delete"), style: "destructive",
         onPress: () =>
-          Alert.alert("Delete", "Are you sure?", [
-            { text: "Cancel" },
-            { text: "Delete", onPress: () => handleDelete(item.id!) },
+          Alert.alert(t("common.delete"), t("transactions.areYouSure"), [
+            { text: t("common.cancel") },
+            { text: t("common.delete"), onPress: () => handleDelete(item.id!) },
           ]),
       },
     ];
     if (item.recurringFrequency && item.recurringFrequency !== "none") {
       buttons.unshift({
-        text: "Stop Recurring", style: "default",
+        text: t("transactions.stopRecurring"), style: "default",
         onPress: () =>
-          Alert.alert("Stop Recurring", "Future occurrences will stop. Past records remain.", [
-            { text: "Cancel" },
-            { text: "Stop", onPress: () => handleStopRecurring(item.id!) },
+          Alert.alert(t("transactions.stopRecurring"), t("transactions.stopRecurringDesc"), [
+            { text: t("common.cancel") },
+            { text: t("common.stop"), onPress: () => handleStopRecurring(item.id!) },
           ]),
       });
     }
-    buttons.push({ text: "Cancel", style: "cancel" });
-    Alert.alert("Transaction Options", `${item.category}: ${format(item.amount)}`, buttons);
+    buttons.push({ text: t("common.cancel"), style: "cancel" });
+    Alert.alert(t("transactions.transactionOptions"), `${item.category}: ${format(item.amount)}`, buttons);
   };
 
   if (loading) {
@@ -154,24 +191,24 @@ export default function TransactionsScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Transactions</Text>
-        <Text style={styles.subtitle}>{filtered.length} of {transactions.length} records</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <Text style={styles.title}>{t("transactions.title")}</Text>
+        <Text style={styles.subtitle}>{filtered.length} {t("transactions.of")} {total} {t("transactions.records")}</Text>
       </View>
 
       {/* Summary Strip */}
       {filtered.length > 0 && (
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Income</Text>
+            <Text style={styles.summaryLabel}>{t("transactions.income")}</Text>
             <Text style={[styles.summaryValue, { color: "#10b981" }]}>+{format(totalIncome)}</Text>
           </View>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Expenses</Text>
+            <Text style={styles.summaryLabel}>{t("transactions.expenses")}</Text>
             <Text style={[styles.summaryValue, { color: "#ef4444" }]}>-{format(totalExpense)}</Text>
           </View>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Saving</Text>
+            <Text style={styles.summaryLabel}>{t("transactions.saving")}</Text>
             <Text style={[styles.summaryValue, { color: totalIncome - totalExpense >= 0 ? "#1e293b" : "#ef4444" }]}>
               {totalIncome - totalExpense >= 0 ? "+" : "-"}{format(Math.abs(totalIncome - totalExpense))}
             </Text>
@@ -182,7 +219,7 @@ export default function TransactionsScreen() {
       {/* Filters */}
       <View style={styles.filterRow}>
         <View style={styles.presetRow}>
-          {PRESETS.map((p) => {
+          {PRESETS(t).map((p) => {
             const active = p.key === "all" ? !isFiltered
               : p.key === "this" ? startDate === getMonthRange(0).start
               : startDate === getMonthRange(-1).start;
@@ -196,11 +233,11 @@ export default function TransactionsScreen() {
         <View style={styles.dateInputRow}>
           <TouchableOpacity style={styles.dateBtn} onPress={() => setShowStartPicker(true)}>
             <Ionicons name="calendar" size={14} color="#94a3b8" />
-            <Text style={styles.dateBtnText}>{startDate || "From"}</Text>
+            <Text style={styles.dateBtnText}>{startDate || t("transactions.from")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.dateBtn} onPress={() => setShowEndPicker(true)}>
             <Ionicons name="calendar" size={14} color="#94a3b8" />
-            <Text style={styles.dateBtnText}>{endDate || "To"}</Text>
+            <Text style={styles.dateBtnText}>{endDate || t("transactions.to")}</Text>
           </TouchableOpacity>
           {isFiltered && (
             <TouchableOpacity onPress={() => { setStartDate(""); setEndDate(""); }}>
@@ -216,9 +253,11 @@ export default function TransactionsScreen() {
       {/* List */}
       <FlatList
         data={filtered}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 100) }}
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.5}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card} onLongPress={() => showActionMenu(item)} delayLongPress={500} activeOpacity={0.7}>
             <View style={styles.cardLeft}>
@@ -238,10 +277,19 @@ export default function TransactionsScreen() {
             </Text>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={<Text style={styles.emptyText}>{isFiltered ? "No transactions found for this date range." : "No transactions yet."}</Text>}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.footerLoader}>
+              <ActivityIndicator size="small" color="#2563eb" />
+            </View>
+          ) : !hasMore && transactions.length > 0 ? (
+            <Text style={styles.footerText}>{t("transactions.allLoaded")}</Text>
+          ) : null
+        }
+        ListEmptyComponent={<Text style={styles.emptyText}>{isFiltered ? t("transactions.noTransactionsRange") : t("transactions.noTransactions")}</Text>}
       />
 
-      <TouchableOpacity style={[styles.fab, fabShadow]} onPress={() => router.push("/add")}>
+      <TouchableOpacity style={[styles.fab, { bottom: Math.max(insets.bottom, 80) }, fabShadow]} onPress={() => router.push("/add")}>
         <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>
     </View>
@@ -251,7 +299,7 @@ export default function TransactionsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8fafc" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 8 },
+  header: { paddingHorizontal: 20, paddingBottom: 8 },
   title: { fontSize: 28, fontWeight: "800", color: "#1e293b" },
   subtitle: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
   summaryRow: { flexDirection: "row", marginHorizontal: 20, marginVertical: 8, backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: "#e2e8f0", overflow: "hidden" },
@@ -276,5 +324,7 @@ const styles = StyleSheet.create({
   recurringText: { fontSize: 10, color: "#2563eb", fontWeight: "700", marginLeft: 3, textTransform: "uppercase" as const },
   amount: { fontSize: 16, fontWeight: "700" },
   emptyText: { textAlign: "center", marginTop: 40, color: "#94a3b8", fontSize: 15 },
-  fab: { position: "absolute", bottom: 20, right: 20, backgroundColor: "#2563eb", width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center" },
+  footerLoader: { paddingVertical: 20, alignItems: "center" },
+  footerText: { textAlign: "center", paddingVertical: 16, color: "#94a3b8", fontSize: 12 },
+  fab: { position: "absolute", right: 20, backgroundColor: "#2563eb", width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center" },
 });
