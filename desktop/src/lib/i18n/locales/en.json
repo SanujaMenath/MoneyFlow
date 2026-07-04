@@ -1,0 +1,71 @@
+{
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "back": "Back"
+  },
+  "settings": {
+    "title": "Settings",
+    "savingsGoal": "Savings Goal",
+    "savingsGoalDesc": "Percentage of income to save each period",
+    "savePercent": "Save {{percent}}% of every paycheck to reach your goal.",
+    "currency": "Currency",
+    "signOut": "Sign Out",
+    "myProfile": "My Profile",
+    "myProfileDesc": "Manage your personal information and preferences",
+    "language": "Language",
+    "appearance": "Appearance",
+    "theme": "Theme"
+  },
+  "profile": {
+    "title": "Profile",
+    "general": "General",
+    "personal": "Personal",
+    "preferences": "Preferences",
+    "security": "Security",
+    "dangerZone": "Danger Zone",
+    "fullName": "Full Name",
+    "username": "Username",
+    "phone": "Phone",
+    "dateOfBirth": "Date of Birth",
+    "country": "Country",
+    "currency": "Currency",
+    "language": "Language",
+    "timezone": "Timezone",
+    "dateFormat": "Date Format",
+    "notifications": "Notifications",
+    "saved": "Profile saved successfully"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalBalance": "Total Balance",
+    "income": "Income",
+    "expenses": "Expenses",
+    "incomeVsExpenses": "Income vs Expenses",
+    "aiInsight": "AI Insight",
+    "healthScore": "Financial Health Score",
+    "viewAll": "View All Transactions",
+    "emptyInsight": "Start logging your income and expenses to get personalised financial insights."
+  },
+  "transactions": {
+    "title": "Transactions",
+    "add": "Add Transaction",
+    "noTransactions": "No transactions yet."
+  },
+  "analytics": {
+    "title": "Analytics",
+    "expensesByCategory": "Expenses by Category",
+    "keyInsights": "Key Spending Insights"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "passwordTooShort": "Password must be at least 6 characters long."
+  }
+}

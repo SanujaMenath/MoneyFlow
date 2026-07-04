@@ -1,165 +1,187 @@
-import { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../../lib/supabase';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState, useCallback } from "react";
+import {
+  View, Text, ScrollView, StyleSheet, RefreshControl,
+  TouchableOpacity, ActivityIndicator,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { fromDB } from '../../types/transaction';
-import type { Transaction } from '../../types/transaction';
-import { useCurrency } from '../../context/CurrencyContext';
-import { processRecurringTransactions } from '../../services/transactionService';
-import AnalyticsDonut from '../../components/AnalyticsDonut';
-import SavingsGoalCard from '../../components/SavingsGoalCard';
-
-const mainCardShadow = Platform.select({
-  web: { boxShadow: "0 5px 10px rgba(37,99,235,0.3)" },
-  default: { elevation: 5, shadowColor: '#2563eb', shadowOpacity: 0.3, shadowRadius: 10 },
-});
+import { useRouter } from "expo-router";
+import { useCurrency } from "../../context/CurrencyContext";
+import { useTheme } from "../../context/ThemeContext";
+import { useThemeColors } from "../../context/useThemeColors";
+import { supabase } from "../../lib/supabase";
+import { getTransactions } from "../../services/transactionService";
+import type { Transaction } from "@moneyflow/shared";
+import { Ionicons } from "@expo/vector-icons";
+import SavingsGoalCard from "../../components/SavingsGoalCard";
+import AnalyticsDonut from "../../components/AnalyticsDonut";
 
 export default function DashboardScreen() {
-  const router = useRouter();
-  const { format } = useCurrency();
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { format } = useCurrency();
+  const { resolvedTheme } = useTheme();
+  const colors = useThemeColors();
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [userName, setUserName] = useState("");
 
-  const fetchData = async () => {
+  const s = makeStyles(colors, insets);
+
+  const loadTransactions = useCallback(async () => {
     try {
-      await processRecurringTransactions();
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('date', { ascending: false })
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setTransactions((data || []).map(fromDB));
+      const data = await getTransactions();
+      setTransactions(data);
     } catch (err) {
-      console.error("Failed to fetch dashboard data:", err);
+      console.error(err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
-  useFocusEffect(useCallback(() => { fetchData(); }, []));
+  useEffect(() => {
+    loadTransactions();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.email) setUserName(user.email.split("@")[0]);
+    });
+  }, [loadTransactions]);
 
-  const stats = useMemo(() => {
-    return transactions.reduce(
-      (acc, t) => {
-        if (t.type === "income") { acc.income += t.amount; acc.balance += t.amount; }
-        else { acc.expenses += t.amount; acc.balance -= t.amount; }
-        return acc;
-      },
-      { balance: 0, income: 0, expenses: 0 }
-    );
-  }, [transactions]);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadTransactions();
+  }, [loadTransactions]);
 
-  const healthScore = stats.income > 0
-    ? Math.max(0, Math.round(((stats.income - stats.expenses) / stats.income) * 100))
+  const totalIncome = transactions
+    .filter((tx) => tx.type === "income")
+    .reduce((sum, tx) => sum + tx.amount, 0);
+  const totalExpenses = transactions
+    .filter((tx) => tx.type === "expense")
+    .reduce((sum, tx) => sum + tx.amount, 0);
+  const balance = totalIncome - totalExpenses;
+  const healthScore = totalIncome > 0
+    ? Math.round((1 - totalExpenses / totalIncome) * 100)
     : 0;
 
-  const aiInsight = stats.expenses > stats.income
-    ? "Your spending this period has exceeded your income. Try identifying non-essential recurring expenses to balance your flow."
-    : stats.income === 0
-    ? t("dashboard.emptyInsight")
-    : "Great job! You are living below your means. This is a perfect time to set aside your surplus for long-term investments.";
-
-  const onRefresh = () => { setRefreshing(true); fetchData(); };
-
-  if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
-  }
+  const getHealthEmoji = () => {
+    if (healthScore >= 50) return "🟢";
+    if (healthScore >= 25) return "🟡";
+    return "🔴";
+  };
 
   return (
     <ScrollView
-      style={[styles.container, { paddingTop: insets.top }]}
-      contentContainerStyle={{ paddingBottom: insets.bottom }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      style={s.container}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
     >
-      <View style={styles.header}>
-        <Text style={styles.greeting}>{t("dashboard.title")}</Text>
-        <TouchableOpacity onPress={() => router.push('/add')}>
-          <Ionicons name="add-circle" size={40} color="#2563eb" />
+      <View style={[s.header, { paddingTop: insets.top + 20 }]}>
+        <View>
+          <Text style={s.greeting}>Hi, {userName || "User"}</Text>
+          <Text style={s.title}>{t("dashboard.title")}</Text>
+        </View>
+        <TouchableOpacity style={s.addBtn} onPress={() => router.push("/add")}>
+          <Ionicons name="add" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Total Balance */}
-      <View style={[styles.mainCard, mainCardShadow]}>
-        <Text style={styles.cardLabel}>{t("dashboard.totalBalance")}</Text>
-        <Text style={styles.balanceText}>{format(stats.balance)}</Text>
-      </View>
-
-      {/* Income / Expense Row */}
-      <View style={styles.statsRow}>
-        <View style={[styles.statBox, { backgroundColor: '#dcfce7' }]}>
-          <Ionicons name="arrow-down-circle" size={24} color="#166534" />
-          <Text style={styles.statLabel}>{t("dashboard.income")}</Text>
-          <Text style={[styles.statValue, { color: '#166534' }]}>+{format(stats.income)}</Text>
+      {loading ? (
+        <View style={{ paddingVertical: 60, alignItems: "center" }}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
-        <View style={[styles.statBox, { backgroundColor: '#fee2e2' }]}>
-          <Ionicons name="arrow-up-circle" size={24} color="#991b1b" />
-          <Text style={styles.statLabel}>{t("dashboard.expenses")}</Text>
-          <Text style={[styles.statValue, { color: '#991b1b' }]}>-{format(stats.expenses)}</Text>
-        </View>
-      </View>
+      ) : (
+        <>
+          {/* Balance Card */}
+          <View style={s.balanceCard}>
+            <Text style={s.balanceLabel}>{t("dashboard.totalBalance")}</Text>
+            <Text style={s.balanceAmount}>{format(balance)}</Text>
+            <View style={s.balanceRow}>
+              <View style={s.balanceItem}>
+                <Text style={s.balanceItemLabel}>{t("dashboard.income")}</Text>
+                <Text style={[s.balanceItemValue, { color: colors.income }]}>{format(totalIncome)}</Text>
+              </View>
+              <View style={s.balanceDivider} />
+              <View style={s.balanceItem}>
+                <Text style={s.balanceItemLabel}>{t("dashboard.expenses")}</Text>
+                <Text style={[s.balanceItemValue, { color: colors.expense }]}>{format(totalExpenses)}</Text>
+              </View>
+            </View>
+          </View>
 
-      {/* Donut Chart + AI Insight */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>{t("dashboard.incomeVsExpenses")}</Text>
-        <AnalyticsDonut income={stats.income} expenses={stats.expenses} />
-      </View>
+          {/* Health Score */}
+          <View style={s.card}>
+            <Text style={s.cardTitle}>{t("dashboard.healthScore")}</Text>
+            <View style={s.healthRow}>
+              <Text style={s.healthEmoji}>{getHealthEmoji()}</Text>
+              <Text style={s.healthScoreText}>{healthScore}%</Text>
+            </View>
+            <View style={s.healthBar}>
+              <View style={[s.healthFill, { width: `${Math.max(0, Math.min(100, healthScore))}%`, backgroundColor: healthScore >= 50 ? colors.income : healthScore >= 25 ? "#f59e0b" : colors.expense }]} />
+            </View>
+          </View>
 
-      {/* AI Insight */}
-      <View style={styles.aiCard}>
-        <View style={styles.aiHeader}>
-          <Ionicons name="bulb" size={20} color="#fbbf24" />
-          <Text style={styles.aiTitle}>{t("dashboard.aiInsight")}</Text>
-        </View>
-        <Text style={styles.aiText}>{aiInsight}</Text>
-        <View style={styles.healthRow}>
-          <Text style={styles.healthLabel}>{t("dashboard.healthScore")}</Text>
-          <Text style={styles.healthValue}>{healthScore}%</Text>
-        </View>
-      </View>
+          {/* Chart */}
+          {transactions.length > 0 && (
+            <View style={s.card}>
+              <Text style={s.cardTitle}>{t("dashboard.incomeVsExpenses")}</Text>
+              <AnalyticsDonut income={totalIncome} expenses={totalExpenses} />
+            </View>
+          )}
 
-      {/* Savings Goal */}
-      <SavingsGoalCard income={stats.income} expenses={stats.expenses} />
+          {/* Savings Goal */}
+          <SavingsGoalCard
+            income={totalIncome}
+            expenses={totalExpenses}
+          />
 
-      {/* Quick link to transactions */}
-      <TouchableOpacity style={styles.linkCard} onPress={() => router.push('/transactions')}>
-        <Text style={styles.linkText}>{t("dashboard.viewAll")}</Text>
-        <Ionicons name="chevron-forward" size={20} color="#64748b" />
-      </TouchableOpacity>
+          {/* AI Insight */}
+          <View style={s.card}>
+            <Text style={s.cardTitle}>{t("dashboard.aiInsight")}</Text>
+            {totalIncome > 0 || totalExpenses > 0 ? (
+              <Text style={s.insightText}>
+                {totalIncome > totalExpenses
+                  ? `${t("components.greatSavingsRate")} ${t("components.surplus", { amount: format(totalIncome - totalExpenses) })}`
+                  : t("components.saveAtLeast20")}
+              </Text>
+            ) : (
+              <Text style={s.insightText}>{t("dashboard.emptyInsight")}</Text>
+            )}
+          </View>
 
-      <View style={{ height: 40 }} />
+          <TouchableOpacity style={s.viewAllBtn} onPress={() => router.push("/transactions")}>
+            <Text style={s.viewAllText}>{t("dashboard.viewAll")}</Text>
+          </TouchableOpacity>
+        </>
+      )}
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc', paddingHorizontal: 20 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
-  greeting: { fontSize: 24, fontWeight: '800', color: '#1e293b' },
-  mainCard: { backgroundColor: '#2563eb', padding: 30, borderRadius: 24 },
-  cardLabel: { color: '#bfdbfe', fontSize: 14, fontWeight: '600', textTransform: 'uppercase' as const },
-  balanceText: { color: '#fff', fontSize: 36, fontWeight: '900', marginTop: 5 },
-  statsRow: { flexDirection: 'row', gap: 15, marginTop: 20 },
-  statBox: { flex: 1, padding: 20, borderRadius: 20 },
-  statLabel: { fontSize: 12, color: '#64748b', fontWeight: '700', marginTop: 10, textTransform: 'uppercase' as const },
-  statValue: { fontSize: 16, fontWeight: '800', marginTop: 2 },
-  card: { backgroundColor: '#fff', padding: 20, borderRadius: 20, marginTop: 20, borderWidth: 1, borderColor: '#e2e8f0' },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#64748b', marginBottom: 8, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
-  aiCard: { backgroundColor: '#1e293b', padding: 20, borderRadius: 20, marginTop: 20 },
-  aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  aiTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  aiText: { fontSize: 13, color: '#94a3b8', lineHeight: 20 },
-  healthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#334155' },
-  healthLabel: { fontSize: 10, color: '#60a5fa', fontWeight: '700', textTransform: 'uppercase' as const, letterSpacing: 1 },
-  healthValue: { fontSize: 22, fontWeight: '900', color: '#fff' },
-  linkCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 20, borderRadius: 16, marginTop: 20, borderWidth: 1, borderColor: '#e2e8f0' },
-  linkText: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
+const makeStyles = (colors: any, insets: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 20 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
+  greeting: { fontSize: 14, color: colors.textMuted, fontWeight: "500" },
+  title: { fontSize: 28, fontWeight: "800", color: colors.text },
+  addBtn: { backgroundColor: colors.primary, width: 48, height: 48, borderRadius: 16, justifyContent: "center", alignItems: "center" },
+  balanceCard: { backgroundColor: colors.primary, padding: 24, borderRadius: 24, marginBottom: 16 },
+  balanceLabel: { fontSize: 13, color: "#bfdbfe", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
+  balanceAmount: { fontSize: 36, fontWeight: "900", color: "#fff", marginVertical: 8 },
+  balanceRow: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 16, padding: 16, marginTop: 8 },
+  balanceItem: { flex: 1, alignItems: "center" },
+  balanceItemLabel: { fontSize: 11, color: "#bfdbfe", fontWeight: "600", textTransform: "uppercase" },
+  balanceItemValue: { fontSize: 18, fontWeight: "800", marginTop: 4 },
+  balanceDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.2)", marginHorizontal: 8 },
+  card: { backgroundColor: colors.card, padding: 20, borderRadius: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.cardBorder },
+  cardTitle: { fontSize: 14, fontWeight: "700", color: colors.textSecondary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 },
+  healthRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
+  healthEmoji: { fontSize: 32 },
+  healthScoreText: { fontSize: 32, fontWeight: "900", color: colors.text },
+  healthBar: { height: 8, backgroundColor: colors.surfaceAlt, borderRadius: 4, overflow: "hidden" },
+  healthFill: { height: 8, borderRadius: 4 },
+  insightText: { fontSize: 14, color: colors.textSecondary, lineHeight: 22 },
+  viewAllBtn: { backgroundColor: colors.surfaceAlt, padding: 16, borderRadius: 16, alignItems: "center", borderWidth: 1, borderColor: colors.border },
+  viewAllText: { color: colors.primary, fontWeight: "700", fontSize: 15 },
 });

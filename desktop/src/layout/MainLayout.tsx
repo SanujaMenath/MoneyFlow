@@ -1,13 +1,8 @@
 import React from "react";
-import {
-  LayoutDashboard,
-  ArrowLeftRight,
-  BarChart3,
-  Settings,
-  Users,
-} from "lucide-react";
+import { LayoutDashboard, ArrowLeftRight, BarChart3, Settings, Users, User } from "lucide-react";
 
-type TabName = "Dashboard" | "Transactions" | "Analytics" | "Settings" | "Collaboration";
+type TabName =
+  "Dashboard" | "Transactions" | "Analytics" | "Settings" | "Collaboration" | "Profile";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -16,10 +11,10 @@ interface MainLayoutProps {
 }
 
 const topMenuItems: { name: TabName; icon: React.ElementType; label: string }[] = [
-  { name: "Dashboard",    icon: LayoutDashboard, label: "Dashboard"    },
-  { name: "Transactions", icon: ArrowLeftRight,  label: "Transactions" },
-  { name: "Analytics",    icon: BarChart3,       label: "Analytics"    },
-  { name: "Collaboration", icon: Users,          label: "Collaboration" },
+  { name: "Dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { name: "Transactions", icon: ArrowLeftRight, label: "Transactions" },
+  { name: "Analytics", icon: BarChart3, label: "Analytics" },
+  { name: "Collaboration", icon: Users, label: "Collaboration" },
 ];
 
 const NavBtn = ({
@@ -43,9 +38,10 @@ const NavBtn = ({
       className={`
         group relative flex items-center justify-center lg:justify-start gap-3
         px-2 lg:px-3.5 py-2.5 rounded-xl transition-all duration-200 w-full
-        ${isActive
-          ? "bg-white/15 text-white shadow-inner"
-          : "text-white/40 hover:text-white/80 hover:bg-white/8"
+        ${
+          isActive
+            ? "bg-white/15 text-white shadow-inner"
+            : "text-white/40 hover:text-white/80 hover:bg-white/8"
         }
       `}
     >
@@ -56,9 +52,10 @@ const NavBtn = ({
       <span
         className={`
           flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-all duration-200
-          ${isActive
-            ? "bg-white/20 text-white"
-            : "text-white/40 group-hover:text-white/70 group-hover:bg-white/10"
+          ${
+            isActive
+              ? "bg-white/20 text-white"
+              : "text-white/40 group-hover:text-white/70 group-hover:bg-white/10"
           }
         `}
       >
@@ -80,7 +77,6 @@ const NavBtn = ({
 const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
   return (
     <div className="h-screen flex bg-bg text-text-primary overflow-hidden">
-
       {/* ── Sidebar ── */}
       <aside
         className="
@@ -94,12 +90,7 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
         "
       >
         {/* Subtle top-right highlight */}
-        <div
-          className="pointer-events-none absolute top-0 right-0 w-32 h-32 opacity-[0.07]"
-          style={{
-            background: "radial-gradient(circle at top right, #93c5fd, transparent 70%)",
-          }}
-        />
+        <div className="pointer-events-none absolute top-0 right-0 w-32 h-32 opacity-[0.07] bg-[radial-gradient(circle_at_top_right,#93c5fd,transparent_70%)]" />
 
         {/*  Logo  */}
         <div className="flex items-center justify-center lg:justify-start gap-3 px-3 lg:px-4 pt-6 pb-8">
@@ -113,9 +104,7 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
 
           {/* Wordmark */}
           <div className="hidden lg:flex flex-col leading-none">
-            <span className="text-white font-bold text-base tracking-tight">
-              MoneyFlow
-            </span>
+            <span className="text-white font-bold text-base tracking-tight">MoneyFlow</span>
             <span className="text-white/30 text-[10px] font-medium tracking-widest uppercase mt-0.5">
               Finance
             </span>
@@ -130,7 +119,14 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
         {/*  Top nav  */}
         <nav className="flex flex-col gap-1 px-2">
           {topMenuItems.map((item) => (
-            <NavBtn key={item.name} name={item.name} icon={item.icon} label={item.label} activeTab={activeTab} setActiveTab={setActiveTab} />
+            <NavBtn
+              key={item.name}
+              name={item.name}
+              icon={item.icon}
+              label={item.label}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+            />
           ))}
         </nav>
 
@@ -143,7 +139,20 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
             System
           </p>
 
-          <NavBtn name="Settings" icon={Settings} label="Settings" activeTab={activeTab} setActiveTab={setActiveTab} />
+          <NavBtn
+            name="Profile"
+            icon={User}
+            label="Profile"
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+          />
+          <NavBtn
+            name="Settings"
+            icon={Settings}
+            label="Settings"
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+          />
 
           {/* Version */}
           <div className="mt-3 flex justify-center lg:justify-start lg:px-2">
@@ -157,7 +166,6 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
 
       {/*  Main content  */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
         {/* Header */}
         <header className="h-14 lg:h-16 border-b border-border bg-card/90 backdrop-blur-sm flex items-center justify-between px-4 lg:px-8 shrink-0">
           <div className="flex items-center gap-3">
@@ -177,14 +185,11 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 bg-bg">
-          <div className="max-w-6xl mx-auto">
-            {children}
-          </div>
+          <div className="max-w-6xl mx-auto">{children}</div>
         </main>
 
         {/* Footer */}
         <footer className="py-2.5 px-4 border-t border-white/6 bg-navy flex items-center justify-center gap-1.5 text-[10px] font-medium text-white/25 shrink-0 flex-wrap">
-       
           <span className="">&copy; 2026 Sanuja Menath. All rights reserved.</span>
         </footer>
       </div>

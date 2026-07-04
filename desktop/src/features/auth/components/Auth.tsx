@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../../lib/supabase';
 
 const MIN_AUTH_INTERVAL_MS = 2000;
 let lastAuthAttempt = 0;
 
 export const Auth = () => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,7 +16,7 @@ export const Auth = () => {
     e.preventDefault();
     
     if (password.length < 6) {
-      alert("Password must be at least 6 characters long.");
+      alert(t("auth.passwordTooShort", "Password must be at least 6 characters long."));
       return;
     }
 
@@ -47,7 +49,7 @@ export const Auth = () => {
         <form className="mt-8 space-y-4" onSubmit={handleAuth}>
           <input
             type="email"
-            placeholder="Email address"
+            placeholder={t("auth.emailLabel")}
             className="w-full px-4 py-3 rounded-xl border border-border outline-none focus:ring-2 focus:ring-primary/20 bg-card text-text-primary"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -55,7 +57,7 @@ export const Auth = () => {
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t("auth.passwordLabel")}
             className="w-full px-4 py-3 rounded-xl border border-border outline-none focus:ring-2 focus:ring-primary/20 bg-card text-text-primary"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -75,7 +77,7 @@ export const Auth = () => {
                 <span>Please wait...</span>
               </>
             ) : (
-              isSignUp ? "Sign Up" : "Sign In"
+              isSignUp ? t("auth.signUp") : t("auth.signIn")
             )}
           </button>
         </form>

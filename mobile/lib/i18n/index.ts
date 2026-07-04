@@ -4,12 +4,26 @@ import { initReactI18next } from "react-i18next";
 import en from "./locales/en.json";
 import si from "./locales/si.json";
 
+const STORAGE_KEY = "mf_language";
+
+function getSavedLanguage(): string {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      if (saved === "en" || saved === "si") return saved;
+    }
+  } catch {}
+  return "en";
+}
+
+const savedLng = getSavedLanguage();
+
 i18n.use(initReactI18next).init({
   resources: {
     en: { translation: en },
     si: { translation: si },
   },
-  lng: "en",
+  lng: savedLng,
   fallbackLng: "en",
   interpolation: {
     escapeValue: false,
@@ -17,5 +31,14 @@ i18n.use(initReactI18next).init({
   returnNull: false,
   returnEmptyString: false,
 });
+
+export function changeLanguage(lng: string) {
+  i18n.changeLanguage(lng);
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem(STORAGE_KEY, lng);
+    }
+  } catch {}
+}
 
 export default i18n;
