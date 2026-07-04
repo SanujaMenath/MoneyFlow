@@ -9,18 +9,18 @@ import { incomeCategories, expenseCategories, frequencies, categoryI18nKeys } fr
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "../context/useThemeColors";
+import { useTheme } from "../context/ThemeContext";
 import DatePicker from "../components/DatePicker";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
-
-const saveBtnShadow = Platform.select({
-  web: { boxShadow: "0 5px 10px rgba(37,99,235,0.3)" },
-  default: { elevation: 5, shadowColor: "#2563eb", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
-});
 
 export default function AddTransactionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const { resolvedTheme } = useTheme();
+  const s = makeStyles(colors);
 
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
@@ -36,7 +36,6 @@ export default function AddTransactionScreen() {
   const categories = type === "income" ? incomeCategories : expenseCategories;
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCategory("");
     setCustomCategory("");
   }, [type]);
@@ -91,51 +90,46 @@ export default function AddTransactionScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
-      <Text style={[styles.title, { paddingTop: insets.top + 20 }]}>{t("add.title")}</Text>
+    <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+      <Text style={[s.title, { paddingTop: insets.top + 20 }]}>{t("add.title")}</Text>
 
-      {/* Type Selector */}
-      <View style={styles.row}>
+      <View style={s.row}>
         <TouchableOpacity
-          style={[styles.typeBtn, type === "expense" && styles.expenseActive]}
+          style={[s.typeBtn, type === "expense" && s.expenseActive]}
           onPress={() => setType("expense")}
         >
-          <Text style={[styles.typeText, type === "expense" && styles.whiteText]}>{t("add.expense")}</Text>
+          <Text style={[s.typeText, type === "expense" && s.whiteText]}>{t("add.expense")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.typeBtn, type === "income" && styles.incomeActive]}
+          style={[s.typeBtn, type === "income" && s.incomeActive]}
           onPress={() => setType("income")}
         >
-          <Text style={[styles.typeText, type === "income" && styles.whiteText]}>{t("add.income")}</Text>
+          <Text style={[s.typeText, type === "income" && s.whiteText]}>{t("add.income")}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Amount */}
-      <Text style={styles.label}>{t("add.amount")}</Text>
+      <Text style={s.label}>{t("add.amount")}</Text>
       <TextInput
-        style={styles.input}
+        style={s.input}
         placeholder={t("add.amountPlaceholder")}
+        placeholderTextColor={colors.placeholder}
         keyboardType="decimal-pad"
         value={amount}
         onChangeText={setAmount}
       />
 
-      {/* Category */}
-      <Text style={styles.label}>{t("add.category")}</Text>
-      <View style={styles.categoryGrid}>
+      <Text style={s.label}>{t("add.category")}</Text>
+      <View style={s.categoryGrid}>
         {categories.map((cat) => (
           <TouchableOpacity
             key={cat}
-            style={[
-              styles.categoryChip,
-              category === cat && (type === "income" ? styles.incomeChipActive : styles.expenseChipActive),
-            ]}
+            style={[s.categoryChip, category === cat && (type === "income" ? s.incomeChipActive : s.expenseChipActive)]}
             onPress={() => {
               setCategory(cat);
               if (cat !== "Other Income" && cat !== "Other Expense") setCustomCategory("");
             }}
           >
-            <Text style={[styles.categoryChipText, category === cat && styles.whiteText]}>
+            <Text style={[s.categoryChipText, category === cat && s.whiteText]}>
               {t(categoryI18nKeys[cat])}
             </Text>
           </TouchableOpacity>
@@ -143,48 +137,46 @@ export default function AddTransactionScreen() {
       </View>
       {(category === "Other Income" || category === "Other Expense" || category === "Other") && (
         <TextInput
-          style={[styles.input, { marginTop: 10 }]}
+          style={[s.input, { marginTop: 10 }]}
           placeholder={t("add.customCategoryPlaceholder")}
+          placeholderTextColor={colors.placeholder}
           value={customCategory}
           onChangeText={setCustomCategory}
         />
       )}
 
-      {/* Date */}
-      <Text style={styles.label}>{t("add.date")}</Text>
+      <Text style={s.label}>{t("add.date")}</Text>
       <TouchableOpacity
-        style={styles.datePicker}
+        style={s.datePicker}
         onPress={() => (Platform.OS === "android" ? showAndroidPicker(false) : setShowDatePicker(true))}
       >
-        <Text style={styles.dateText}>{date.toDateString()}</Text>
+        <Text style={s.dateText}>{date.toDateString()}</Text>
       </TouchableOpacity>
       {Platform.OS !== "android" && showDatePicker && (
         <DatePicker value={date} onChange={setDate} show={showDatePicker} onClose={() => setShowDatePicker(false)} />
       )}
 
-      {/* Recurring Frequency */}
-      <Text style={styles.label}>{t("add.recurring")}</Text>
-      <View style={styles.frequencyRow}>
+      <Text style={s.label}>{t("add.recurring")}</Text>
+      <View style={s.frequencyRow}>
         {frequencies.map((f) => (
           <TouchableOpacity
             key={f.value}
-            style={[styles.freqBtn, frequency === f.value && styles.freqActive]}
+            style={[s.freqBtn, frequency === f.value && s.freqActive]}
             onPress={() => setFrequency(f.value)}
           >
-            <Text style={[styles.freqText, frequency === f.value && styles.whiteText]}>{t(f.key)}</Text>
+            <Text style={[s.freqText, frequency === f.value && s.whiteText]}>{t(f.key)}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Recurring End Date */}
       {frequency !== "none" && (
         <>
-          <Text style={styles.label}>{t("add.endDate")}</Text>
+          <Text style={s.label}>{t("add.endDate")}</Text>
           <TouchableOpacity
-            style={styles.datePicker}
+            style={s.datePicker}
             onPress={() => (Platform.OS === "android" ? showAndroidPicker(true) : setShowEndDatePicker(true))}
           >
-            <Text style={styles.dateText}>{endDate ? endDate.toDateString() : t("add.noEndDate")}</Text>
+            <Text style={s.dateText}>{endDate ? endDate.toDateString() : t("add.noEndDate")}</Text>
           </TouchableOpacity>
           {Platform.OS !== "android" && showEndDatePicker && (
             <DatePicker value={endDate || new Date()} onChange={(d) => setEndDate(d)} show={showEndDatePicker} onClose={() => setShowEndDatePicker(false)} />
@@ -192,36 +184,35 @@ export default function AddTransactionScreen() {
         </>
       )}
 
-      {/* Save */}
-      <TouchableOpacity style={[styles.saveBtn, saveBtnShadow]} onPress={handleSave} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t("add.save")}</Text>}
+      <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{t("add.save")}</Text>}
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 20 },
-  title: { fontSize: 26, fontWeight: "900", color: "#1e293b", marginVertical: 20 },
-  label: { fontSize: 14, fontWeight: "700", color: "#64748b", marginBottom: 10, marginTop: 20, textTransform: "uppercase" as const, letterSpacing: 0.5 },
-  input: { borderWidth: 1, borderColor: "#e2e8f0", padding: 16, borderRadius: 14, fontSize: 16, backgroundColor: "#f8fafc" },
+const makeStyles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background, padding: 20 },
+  title: { fontSize: 26, fontWeight: "900", color: colors.text, marginVertical: 20 },
+  label: { fontSize: 14, fontWeight: "700", color: colors.textSecondary, marginBottom: 10, marginTop: 20, textTransform: "uppercase" as const, letterSpacing: 0.5 },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, padding: 16, borderRadius: 14, fontSize: 16, backgroundColor: colors.inputBg, color: colors.text },
   row: { flexDirection: "row", gap: 10, marginBottom: 10 },
-  typeBtn: { flex: 1, padding: 16, borderRadius: 14, alignItems: "center", backgroundColor: "#f1f5f9" },
-  expenseActive: { backgroundColor: "#ef4444" },
-  incomeActive: { backgroundColor: "#10b981" },
-  typeText: { fontWeight: "700", color: "#64748b" },
+  typeBtn: { flex: 1, padding: 16, borderRadius: 14, alignItems: "center", backgroundColor: colors.surfaceAlt },
+  expenseActive: { backgroundColor: colors.expense },
+  incomeActive: { backgroundColor: colors.income },
+  typeText: { fontWeight: "700", color: colors.textSecondary },
   whiteText: { color: "#fff" },
   categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  categoryChip: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: "#f1f5f9", borderWidth: 1, borderColor: "#e2e8f0" },
-  categoryChipText: { fontSize: 13, fontWeight: "600", color: "#475569" },
-  incomeChipActive: { backgroundColor: "#10b981", borderColor: "#10b981" },
-  expenseChipActive: { backgroundColor: "#ef4444", borderColor: "#ef4444" },
-  datePicker: { padding: 16, borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 14, backgroundColor: "#f8fafc" },
-  dateText: { fontSize: 16, color: "#1e293b", fontWeight: "500" },
+  categoryChip: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
+  categoryChipText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
+  incomeChipActive: { backgroundColor: colors.income, borderColor: colors.income },
+  expenseChipActive: { backgroundColor: colors.expense, borderColor: colors.expense },
+  datePicker: { padding: 16, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 14, backgroundColor: colors.inputBg },
+  dateText: { fontSize: 16, color: colors.text, fontWeight: "500" },
   frequencyRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  freqBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: "#f1f5f9" },
-  freqActive: { backgroundColor: "#2563eb" },
-  freqText: { fontSize: 13, fontWeight: "600", color: "#475569" },
-  saveBtn: { backgroundColor: "#2563eb", padding: 18, borderRadius: 16, alignItems: "center", marginTop: 40 },
+  freqBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
+  freqActive: { backgroundColor: colors.primary },
+  freqText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
+  saveBtn: { backgroundColor: colors.primary, padding: 18, borderRadius: 16, alignItems: "center", marginTop: 40 },
   saveBtnText: { color: "#fff", fontWeight: "800", fontSize: 18 },
 });

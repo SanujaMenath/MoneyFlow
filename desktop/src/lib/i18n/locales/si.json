@@ -1,0 +1,70 @@
+{
+  "common": {
+    "ok": "හරි",
+    "cancel": "අවලංගු කරන්න",
+    "delete": "මකන්න",
+    "error": "දෝෂයක්",
+    "success": "සාර්ථකයි",
+    "save": "සුරකින්න",
+    "back": "ආපසු"
+  },
+  "settings": {
+    "title": "සැකසුම්",
+    "savingsGoal": "ඉතිරිකිරීමේ ඉලක්කය",
+    "savingsGoalDesc": "සෑම කාලයකදීම ඉතිරි කිරීමට ආදායමේ ප්‍රතිශතය",
+    "savePercent": "ඔබේ ඉලක්කයට ළඟාවීමට සෑම වැටුප් ගෙවීමකින්ම {{percent}}%ක් ඉතිරි කරන්න.",
+    "currency": "මුදල් ඒකකය",
+    "signOut": "පිටවන්න",
+    "myProfile": "මගේ පැතිකඩ",
+    "myProfileDesc": "ඔබේ පුද්ගලික තොරතුරු සහ මනාප කළමනාකරණය කරන්න",
+    "language": "භාෂාව",
+    "appearance": "පෙනුම",
+    "theme": "තේමාව"
+  },
+  "profile": {
+    "title": "පැතිකඩ",
+    "general": "සාමාන්‍ය",
+    "personal": "පුද්ගලික",
+    "preferences": "මනාප",
+    "security": "ආරක්ෂාව",
+    "dangerZone": "අවදානම් කලාපය",
+    "fullName": "සම්පූර්ණ නම",
+    "username": "පරිශීලක නම",
+    "phone": "දුරකථනය",
+    "dateOfBirth": "උපන් දිනය",
+    "country": "රට",
+    "currency": "මුදල් ඒකකය",
+    "language": "භාෂාව",
+    "timezone": "වේලා කලාපය",
+    "dateFormat": "දින ආකෘතිය",
+    "notifications": "දැනුම්දීම්",
+    "saved": "පැතිකඩ සාර්ථකව සුරකින ලදී"
+  },
+  "dashboard": {
+    "title": "දළ විශ්ලේෂණය",
+    "totalBalance": "සම්පූර්ණ ශේෂය",
+    "income": "ආදායම",
+    "expenses": "වියදම්",
+    "incomeVsExpenses": "ආදායම එදිරිව වියදම්",
+    "aiInsight": "AI අවබෝධය",
+    "healthScore": "මූල්‍ය සෞඛ්‍ය ලකුණු",
+    "viewAll": "සියලුම ගනුදෙනු බලන්න",
+    "emptyInsight": "පුද්ගලීකරණය කළ මූල්‍ය අවබෝධය ලබා ගැනීමට ඔබේ ආදායම් සහ වියදම් සටහන් කිරීම ආරම්භ කරන්න."
+  },
+  "transactions": {
+    "title": "ගනුදෙනු",
+    "add": "ගනුදෙනුව එක් කරන්න",
+    "noTransactions": "තවම ගනුදෙනු නැත."
+  },
+  "analytics": {
+    "title": "විශ්ලේෂණ",
+    "expensesByCategory": "කාණ්ඩය අනුව වියදම්",
+    "keyInsights": "ප්‍රධාන වියදම් අවබෝධතා"
+  },
+  "auth": {
+    "signIn": "පුරනය වන්න",
+    "signUp": "ලියාපදිංචි වන්න",
+    "emailLabel": "විද්‍යුත් තැපෑල",
+    "passwordLabel": "මුරපදය"
+  }
+}

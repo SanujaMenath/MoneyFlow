@@ -4,6 +4,7 @@ import { supabase } from "./lib/supabase";
 import { Auth } from "./features/auth/components/Auth";
 import { useTransactions } from "./features/transactions/hooks/useTransactions";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import "./lib/i18n";
 
 const DashboardView = lazy(() => import("./features/dashboard/DashboardView"));
 const TransactionsPage = lazy(() => import("./features/transactions/TransactionsPage"));
@@ -14,7 +15,7 @@ const AnalyticsPage = lazy(() => import("./features/analytics/AnalyticsPage"));
 const CollaborationPage = lazy(() => import("./features/collaboration/CollaborationPage"));
 
 function App() {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<unknown>(null);
   const [activeTab, setActiveTab] = useState<
     "Dashboard" | "Transactions" | "Analytics" | "Settings" | "Collaboration" | "Profile"
   >("Dashboard");

@@ -14,18 +14,18 @@ import type { Profile, ProfileUpdate } from "@moneyflow/shared";
 import {
   COUNTRIES, LANGUAGES, TIMEZONES, DATE_FORMATS,
 } from "@moneyflow/shared";
+import { useThemeColors } from "../context/useThemeColors";
+import { changeLanguage } from "../lib/i18n";
+import { useTheme } from "../context/ThemeContext";
 
-type Section =
-  | "general"
-  | "personal"
-  | "preferences"
-  | "security"
-  | "danger";
+type Section = "general" | "personal" | "preferences" | "security" | "danger";
 
 export default function ProfileScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const { resolvedTheme } = useTheme();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +55,8 @@ export default function ProfileScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
+  const s = makeStyles(colors);
+
   useEffect(() => {
     loadProfile();
   }, []);
@@ -78,10 +80,11 @@ export default function ProfileScreen() {
       setTimezone(data.timezone || "UTC");
       setDateFormat(data.date_format || "YYYY-MM-DD");
       setDashboardView(data.default_dashboard_view || "overview");
-      setPushEnabled(data.notification_preferences?.push_enabled ?? true);
-      setEmailNotifications(data.notification_preferences?.email_notifications ?? true);
-      setWeeklySummary(data.notification_preferences?.weekly_summary ?? false);
-      setMonthlyReport(data.notification_preferences?.monthly_report ?? true);
+      const prefs = data.notification_preferences;
+      setPushEnabled(prefs?.push_enabled ?? true);
+      setEmailNotifications(prefs?.email_notifications ?? true);
+      setWeeklySummary(prefs?.weekly_summary ?? false);
+      setMonthlyReport(prefs?.monthly_report ?? true);
     } catch (error: any) {
       Alert.alert(t("common.error"), error.message);
     } finally {
@@ -115,6 +118,9 @@ export default function ProfileScreen() {
       };
 
       await updateProfile(user.id, updates);
+      if (language !== i18n.language) {
+        changeLanguage(language);
+      }
       Alert.alert(t("common.success"), t("profile.saved"));
     } catch (error: any) {
       Alert.alert(t("common.error"), error.message);
@@ -131,12 +137,10 @@ export default function ProfileScreen() {
       input.onchange = async (e: any) => {
         const file = e.target?.files?.[0];
         if (!file) return;
-
         setAvatarUploading(true);
         try {
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return;
-
           const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
           await uploadAvatar(user.id, file, ext);
           await loadProfile();
@@ -148,10 +152,7 @@ export default function ProfileScreen() {
       };
       input.click();
     } else {
-      Alert.alert(
-        t("profile.avatar"),
-        t("profile.avatarPickHint")
-      );
+      Alert.alert(t("profile.avatar"), t("profile.avatarPickHint"));
     }
   }
 
@@ -217,19 +218,11 @@ export default function ProfileScreen() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email!,
-        password: deletePassword,
+        email: user.email!, password: deletePassword,
       });
       if (signInError) throw new Error(t("profile.wrongPassword"));
-
-      const { error: deleteError } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("id", user.id);
-      if (deleteError) throw deleteError;
-
+      await supabase.from("profiles").delete().eq("id", user.id);
       await supabase.auth.signOut();
       router.replace("/auth");
     } catch (error: any) {
@@ -241,94 +234,91 @@ export default function ProfileScreen() {
   }
 
   const renderPicker = (
-    label: string,
-    value: string,
+    label: string, value: string,
     options: { code?: string; value?: string; name?: string; label?: string }[],
     onChange: (v: string) => void
   ) => (
-    <View style={styles.pickerGroup}>
-      <Text style={styles.pickerLabel}>{label}</Text>
-      <View style={styles.pickerOptions}>
-        {options.map((opt) => {
-          const val = opt.code || opt.value || "";
-          const display = opt.name || opt.label || val;
-          const isSelected = value === val;
-          return (
-            <TouchableOpacity
-              key={val}
-              style={[styles.pickerChip, isSelected && styles.pickerChipActive]}
-              onPress={() => onChange(val)}
-            >
-              <Text style={[styles.pickerChipText, isSelected && styles.pickerChipTextActive]}>
-                {display}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+    <View style={s.pickerGroup}>
+      <Text style={s.pickerLabel}>{label}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={s.pickerOptions}>
+          {options.map((opt) => {
+            const val = opt.code || opt.value || "";
+            const display = opt.name || opt.label || val;
+            const isSelected = value === val;
+            return (
+              <TouchableOpacity
+                key={val}
+                style={[s.pickerChip, isSelected && s.pickerChipActive]}
+                onPress={() => onChange(val)}
+              >
+                <Text style={[s.pickerChipText, isSelected && s.pickerChipTextActive]}>
+                  {display}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </ScrollView>
     </View>
   );
 
-  const sections: { key: Section; label: string; icon: string }[] = [
-    { key: "general", label: t("profile.general"), icon: "person" },
-    { key: "personal", label: t("profile.personal"), icon: "info" },
-    { key: "preferences", label: t("profile.preferences"), icon: "settings" },
-    { key: "security", label: t("profile.security"), icon: "lock" },
-    { key: "danger", label: t("profile.dangerZone"), icon: "warning" },
+  const sections: { key: Section; label: string }[] = [
+    { key: "general", label: t("profile.general") },
+    { key: "personal", label: t("profile.personal") },
+    { key: "preferences", label: t("profile.preferences") },
+    { key: "security", label: t("profile.security") },
+    { key: "danger", label: t("profile.dangerZone") },
   ];
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
-        <ActivityIndicator size="large" color="#2563eb" />
+      <View style={[s.container, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
-      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>← {t("common.back")}</Text>
+    <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: 60 }}>
+      <View style={[s.header, { paddingTop: insets.top + 20 }]}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <Text style={s.backBtnText}>← {t("common.back")}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>{t("profile.title")}</Text>
+        <Text style={s.title}>{t("profile.title")}</Text>
       </View>
 
-      {/* Avatar */}
-      <View style={styles.avatarSection}>
-        <TouchableOpacity onPress={handleAvatarPick} style={styles.avatarContainer}>
+      <View style={s.avatarSection}>
+        <TouchableOpacity onPress={handleAvatarPick} style={s.avatarContainer}>
           {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+            <Image source={{ uri: profile.avatar_url }} style={s.avatar} />
           ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarPlaceholderText}>
+            <View style={s.avatarPlaceholder}>
+              <Text style={s.avatarPlaceholderText}>
                 {fullName ? fullName.charAt(0).toUpperCase() : "?"}
               </Text>
             </View>
           )}
           {avatarUploading && (
-            <View style={styles.avatarOverlay}>
-              <ActivityIndicator color="#fff" />
-            </View>
+            <View style={s.avatarOverlay}><ActivityIndicator color="#fff" /></View>
           )}
         </TouchableOpacity>
-        <Text style={styles.avatarHint}>{t("profile.tapToChange")}</Text>
+        <Text style={s.avatarHint}>{t("profile.tapToChange")}</Text>
         {profile?.avatar_url && (
           <TouchableOpacity onPress={handleRemoveAvatar}>
-            <Text style={styles.removeAvatarText}>{t("profile.removePhoto")}</Text>
+            <Text style={s.removeAvatarText}>{t("profile.removePhoto")}</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Section Tabs */}
-      <View style={styles.sectionTabs}>
+      <View style={s.sectionTabs}>
         {sections.map((sec) => (
           <TouchableOpacity
             key={sec.key}
-            style={[styles.sectionTab, activeSection === sec.key && styles.sectionTabActive]}
+            style={[s.sectionTab, activeSection === sec.key && s.sectionTabActive]}
             onPress={() => setActiveSection(sec.key)}
           >
-            <Text style={[styles.sectionTabText, activeSection === sec.key && styles.sectionTabTextActive]}>
+            <Text style={[s.sectionTabText, activeSection === sec.key && s.sectionTabTextActive]}>
               {sec.label}
             </Text>
           </TouchableOpacity>
@@ -336,93 +326,43 @@ export default function ProfileScreen() {
       </View>
 
       {activeSection === "general" && (
-        <View style={styles.card}>
-          <Text style={styles.inputLabel}>{t("profile.fullName")}</Text>
-          <TextInput
-            style={styles.input}
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder={t("profile.fullNamePlaceholder")}
-          />
-
-          <Text style={styles.inputLabel}>{t("profile.username")}</Text>
-          <TextInput
-            style={styles.input}
-            value={username}
-            onChangeText={setUsername}
-            placeholder={t("profile.usernamePlaceholder")}
-            autoCapitalize="none"
-          />
+        <View style={s.card}>
+          <Text style={s.inputLabel}>{t("profile.fullName")}</Text>
+          <TextInput style={s.input} value={fullName} onChangeText={setFullName} placeholder={t("profile.fullNamePlaceholder")} placeholderTextColor={colors.placeholder} />
+          <Text style={s.inputLabel}>{t("profile.username")}</Text>
+          <TextInput style={s.input} value={username} onChangeText={setUsername} placeholder={t("profile.usernamePlaceholder")} placeholderTextColor={colors.placeholder} autoCapitalize="none" />
         </View>
       )}
 
       {activeSection === "personal" && (
-        <View style={styles.card}>
-          <Text style={styles.inputLabel}>{t("profile.phone")}</Text>
-          <TextInput
-            style={styles.input}
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="+94 77 123 4567"
-            keyboardType="phone-pad"
-          />
-
-          <Text style={styles.inputLabel}>{t("profile.dateOfBirth")}</Text>
-          <TextInput
-            style={styles.input}
-            value={dateOfBirth}
-            onChangeText={setDateOfBirth}
-            placeholder="YYYY-MM-DD"
-          />
-
-          <Text style={styles.inputLabel}>{t("profile.country")}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
-            {COUNTRIES.map((c) => (
-              <TouchableOpacity
-                key={c.code}
-                style={[styles.pickerChip, country === c.code && styles.pickerChipActive]}
-                onPress={() => setCountry(c.code)}
-              >
-                <Text style={[styles.pickerChipText, country === c.code && styles.pickerChipTextActive]}>
-                  {c.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+        <View style={s.card}>
+          <Text style={s.inputLabel}>{t("profile.phone")}</Text>
+          <TextInput style={s.input} value={phone} onChangeText={setPhone} placeholder="+94 77 123 4567" placeholderTextColor={colors.placeholder} keyboardType="phone-pad" />
+          <Text style={s.inputLabel}>{t("profile.dateOfBirth")}</Text>
+          <TextInput style={s.input} value={dateOfBirth} onChangeText={setDateOfBirth} placeholder="YYYY-MM-DD" placeholderTextColor={colors.placeholder} />
+          <Text style={s.inputLabel}>{t("profile.country")}</Text>
+          {renderPicker("", country, COUNTRIES.map((c) => ({ code: c.code, name: c.name })), setCountry)}
         </View>
       )}
 
       {activeSection === "preferences" && (
-        <View style={styles.card}>
-          {renderPicker(t("profile.currency"), currency,
-            ["LKR", "USD", "EUR", "GBP", "INR", "AUD", "JPY", "CAD"].map((c) => ({ code: c, name: c })),
-            setCurrency
-          )}
+        <View style={s.card}>
+          {renderPicker(t("profile.currency"), currency, ["LKR", "USD", "EUR", "GBP", "INR", "AUD", "JPY", "CAD"].map((c) => ({ code: c, name: c })), setCurrency)}
           {renderPicker(t("profile.language"), language, LANGUAGES, setLanguage)}
-          {renderPicker(t("profile.timezone"), timezone,
-            TIMEZONES.map((tz) => ({ code: tz, name: tz })),
-            setTimezone
-          )}
-          {renderPicker(t("profile.dateFormat"), dateFormat,
-            DATE_FORMATS.map((f) => ({ code: f.value, name: f.label })),
-            setDateFormat
-          )}
+          {renderPicker(t("profile.timezone"), timezone, TIMEZONES.map((tz) => ({ code: tz, name: tz })), setTimezone)}
+          {renderPicker(t("profile.dateFormat"), dateFormat, DATE_FORMATS.map((f) => ({ code: f.value, name: f.label })), setDateFormat)}
 
-          <Text style={styles.sectionLabel}>{t("profile.notifications")}</Text>
+          <Text style={s.sectionLabel}>{t("profile.notifications")}</Text>
           {[
             { key: "push", label: t("profile.pushNotifications"), value: pushEnabled, set: setPushEnabled },
             { key: "email", label: t("profile.emailNotifications"), value: emailNotifications, set: setEmailNotifications },
             { key: "weekly", label: t("profile.weeklySummary"), value: weeklySummary, set: setWeeklySummary },
             { key: "monthly", label: t("profile.monthlyReport"), value: monthlyReport, set: setMonthlyReport },
           ].map((item) => (
-            <TouchableOpacity
-              key={item.key}
-              style={styles.toggleRow}
-              onPress={() => item.set(!item.value)}
-            >
-              <Text style={styles.toggleLabel}>{item.label}</Text>
-              <View style={[styles.toggleSwitch, item.value && styles.toggleSwitchActive]}>
-                <View style={[styles.toggleKnob, item.value && styles.toggleKnobActive]} />
+            <TouchableOpacity key={item.key} style={s.toggleRow} onPress={() => item.set(!item.value)}>
+              <Text style={s.toggleLabel}>{item.label}</Text>
+              <View style={[s.toggleSwitch, item.value && s.toggleSwitchActive]}>
+                <View style={[s.toggleKnob, item.value && s.toggleKnobActive]} />
               </View>
             </TouchableOpacity>
           ))}
@@ -430,104 +370,42 @@ export default function ProfileScreen() {
       )}
 
       {activeSection === "security" && (
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>{t("profile.changePassword")}</Text>
-          <TextInput
-            style={styles.input}
-            value={currentPassword}
-            onChangeText={setCurrentPassword}
-            placeholder={t("profile.currentPassword")}
-            secureTextEntry
-          />
-          <TextInput
-            style={styles.input}
-            value={newPassword}
-            onChangeText={setNewPassword}
-            placeholder={t("profile.newPassword")}
-            secureTextEntry
-          />
-          <TextInput
-            style={styles.input}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            placeholder={t("profile.confirmPassword")}
-            secureTextEntry
-          />
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: "#2563eb" }]}
-            onPress={handleChangePassword}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.actionBtnText}>{t("profile.updatePassword")}</Text>
-            )}
+        <View style={s.card}>
+          <Text style={s.sectionLabel}>{t("profile.changePassword")}</Text>
+          <TextInput style={s.input} value={currentPassword} onChangeText={setCurrentPassword} placeholder={t("profile.currentPassword")} placeholderTextColor={colors.placeholder} secureTextEntry />
+          <TextInput style={s.input} value={newPassword} onChangeText={setNewPassword} placeholder={t("profile.newPassword")} placeholderTextColor={colors.placeholder} secureTextEntry />
+          <TextInput style={s.input} value={confirmPassword} onChangeText={setConfirmPassword} placeholder={t("profile.confirmPassword")} placeholderTextColor={colors.placeholder} secureTextEntry />
+          <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.primary }]} onPress={handleChangePassword} disabled={saving}>
+            {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.actionBtnText}>{t("profile.updatePassword")}</Text>}
           </TouchableOpacity>
 
-          <View style={styles.divider} />
+          <View style={s.divider} />
 
-          <Text style={styles.sectionLabel}>{t("profile.changeEmail")}</Text>
-          <TextInput
-            style={styles.input}
-            value={newEmail}
-            onChangeText={setNewEmail}
-            placeholder={t("profile.newEmail")}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: "#2563eb" }]}
-            onPress={handleChangeEmail}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.actionBtnText}>{t("profile.sendVerification")}</Text>
-            )}
+          <Text style={s.sectionLabel}>{t("profile.changeEmail")}</Text>
+          <TextInput style={s.input} value={newEmail} onChangeText={setNewEmail} placeholder={t("profile.newEmail")} placeholderTextColor={colors.placeholder} keyboardType="email-address" autoCapitalize="none" />
+          <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.primary }]} onPress={handleChangeEmail} disabled={saving}>
+            {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.actionBtnText}>{t("profile.sendVerification")}</Text>}
           </TouchableOpacity>
         </View>
       )}
 
       {activeSection === "danger" && (
-        <View style={styles.dangerCard}>
-          <Text style={styles.dangerTitle}>{t("profile.deleteAccount")}</Text>
-          <Text style={styles.dangerDesc}>{t("profile.deleteAccountDesc")}</Text>
-
+        <View style={s.dangerCard}>
+          <Text style={s.dangerTitle}>{t("profile.deleteAccount")}</Text>
+          <Text style={s.dangerDesc}>{t("profile.deleteAccountDesc")}</Text>
           {!showDeleteConfirm ? (
-            <TouchableOpacity
-              style={styles.dangerBtn}
-              onPress={() => setShowDeleteConfirm(true)}
-            >
-              <Text style={styles.dangerBtnText}>{t("profile.deleteAccount")}</Text>
+            <TouchableOpacity style={s.dangerBtn} onPress={() => setShowDeleteConfirm(true)}>
+              <Text style={s.dangerBtnText}>{t("profile.deleteAccount")}</Text>
             </TouchableOpacity>
           ) : (
             <View>
-              <TextInput
-                style={styles.input}
-                value={deletePassword}
-                onChangeText={setDeletePassword}
-                placeholder={t("profile.enterPassword")}
-                secureTextEntry
-              />
-              <View style={styles.dangerActions}>
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: "#ef4444", flex: 1 }]}
-                  onPress={handleDeleteAccount}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.actionBtnText}>{t("profile.confirmDelete")}</Text>
-                  )}
+              <TextInput style={s.input} value={deletePassword} onChangeText={setDeletePassword} placeholder={t("profile.enterPassword")} placeholderTextColor={colors.placeholder} secureTextEntry />
+              <View style={s.dangerActions}>
+                <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.expense, flex: 1 }]} onPress={handleDeleteAccount} disabled={saving}>
+                  {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.actionBtnText}>{t("profile.confirmDelete")}</Text>}
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: "#64748b", flex: 1 }]}
-                  onPress={() => setShowDeleteConfirm(false)}
-                >
-                  <Text style={styles.actionBtnText}>{t("common.cancel")}</Text>
+                <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.textMuted, flex: 1 }]} onPress={() => setShowDeleteConfirm(false)}>
+                  <Text style={s.actionBtnText}>{t("common.cancel")}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -536,78 +414,59 @@ export default function ProfileScreen() {
       )}
 
       {activeSection !== "security" && activeSection !== "danger" && (
-        <TouchableOpacity
-          style={styles.saveBtn}
-          onPress={handleSave}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveBtnText}>{t("common.save")}</Text>
-          )}
+        <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={saving}>
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{t("common.save")}</Text>}
         </TouchableOpacity>
       )}
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8fafc", paddingHorizontal: 20 },
+const makeStyles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 20 },
   header: { marginBottom: 20 },
   backBtn: { marginBottom: 10 },
-  backBtnText: { fontSize: 16, color: "#2563eb", fontWeight: "600" },
-  title: { fontSize: 28, fontWeight: "800", color: "#1e293b" },
-
+  backBtnText: { fontSize: 16, color: colors.primary, fontWeight: "600" },
+  title: { fontSize: 28, fontWeight: "800", color: colors.text },
   avatarSection: { alignItems: "center", marginBottom: 24 },
-  avatarContainer: { width: 100, height: 100, borderRadius: 50, overflow: "hidden", backgroundColor: "#e2e8f0", position: "relative" },
+  avatarContainer: { width: 100, height: 100, borderRadius: 50, overflow: "hidden", backgroundColor: colors.surfaceAlt, position: "relative" },
   avatar: { width: 100, height: 100, borderRadius: 50 },
-  avatarPlaceholder: { width: 100, height: 100, borderRadius: 50, backgroundColor: "#2563eb", justifyContent: "center", alignItems: "center" },
+  avatarPlaceholder: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.primary, justifyContent: "center", alignItems: "center" },
   avatarPlaceholderText: { fontSize: 36, fontWeight: "800", color: "#fff" },
   avatarOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 50, justifyContent: "center", alignItems: "center" },
-  avatarHint: { fontSize: 12, color: "#94a3b8", marginTop: 8 },
-  removeAvatarText: { fontSize: 13, color: "#ef4444", fontWeight: "600", marginTop: 4 },
-
+  avatarHint: { fontSize: 12, color: colors.textMuted, marginTop: 8 },
+  removeAvatarText: { fontSize: 13, color: colors.expense, fontWeight: "600", marginTop: 4 },
   sectionTabs: { flexDirection: "row", gap: 8, marginBottom: 16, flexWrap: "wrap" },
-  sectionTab: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, backgroundColor: "#f1f5f9", borderWidth: 1, borderColor: "#e2e8f0" },
-  sectionTabActive: { backgroundColor: "#2563eb", borderColor: "#2563eb" },
-  sectionTabText: { fontSize: 13, fontWeight: "600", color: "#64748b" },
+  sectionTab: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
+  sectionTabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  sectionTabText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
   sectionTabTextActive: { color: "#fff" },
-
-  card: { backgroundColor: "#fff", padding: 20, borderRadius: 20, marginTop: 8, borderWidth: 1, borderColor: "#e2e8f0" },
-  inputLabel: { fontSize: 13, fontWeight: "700", color: "#64748b", marginBottom: 6, marginTop: 14, textTransform: "uppercase", letterSpacing: 0.5 },
-  input: { borderWidth: 1, borderColor: "#e2e8f0", padding: 14, borderRadius: 12, fontSize: 15, backgroundColor: "#f8fafc", marginBottom: 4 },
-
+  card: { backgroundColor: colors.card, padding: 20, borderRadius: 20, marginTop: 8, borderWidth: 1, borderColor: colors.cardBorder },
+  inputLabel: { fontSize: 13, fontWeight: "700", color: colors.textSecondary, marginBottom: 6, marginTop: 14, textTransform: "uppercase", letterSpacing: 0.5 },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, padding: 14, borderRadius: 12, fontSize: 15, backgroundColor: colors.inputBg, color: colors.text, marginBottom: 4 },
   pickerGroup: { marginBottom: 16 },
-  pickerLabel: { fontSize: 13, fontWeight: "700", color: "#64748b", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
-  pickerScroll: { maxHeight: 80 },
+  pickerLabel: { fontSize: 13, fontWeight: "700", color: colors.textSecondary, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
   pickerOptions: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  pickerChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, backgroundColor: "#f1f5f9", borderWidth: 1, borderColor: "#e2e8f0" },
-  pickerChipActive: { backgroundColor: "#2563eb", borderColor: "#2563eb" },
-  pickerChipText: { fontSize: 12, fontWeight: "600", color: "#475569" },
+  pickerChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
+  pickerChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  pickerChipText: { fontSize: 12, fontWeight: "600", color: colors.textSecondary },
   pickerChipTextActive: { color: "#fff" },
-
-  sectionLabel: { fontSize: 14, fontWeight: "700", color: "#1e293b", marginBottom: 12, marginTop: 8 },
-
-  toggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" },
-  toggleLabel: { fontSize: 14, fontWeight: "500", color: "#334155" },
-  toggleSwitch: { width: 44, height: 24, borderRadius: 12, backgroundColor: "#cbd5e1", justifyContent: "center", paddingHorizontal: 2 },
-  toggleSwitchActive: { backgroundColor: "#2563eb" },
+  sectionLabel: { fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: 12, marginTop: 8 },
+  toggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
+  toggleLabel: { fontSize: 14, fontWeight: "500", color: colors.text },
+  toggleSwitch: { width: 44, height: 24, borderRadius: 12, backgroundColor: colors.border, justifyContent: "center", paddingHorizontal: 2 },
+  toggleSwitchActive: { backgroundColor: colors.primary },
   toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
   toggleKnobActive: { alignSelf: "flex-end" },
-
-  divider: { height: 1, backgroundColor: "#e2e8f0", marginVertical: 20 },
-
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 20 },
   actionBtn: { padding: 14, borderRadius: 12, alignItems: "center", marginTop: 12 },
   actionBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-
-  saveBtn: { backgroundColor: "#2563eb", padding: 16, borderRadius: 16, alignItems: "center", marginTop: 24 },
+  saveBtn: { backgroundColor: colors.primary, padding: 16, borderRadius: 16, alignItems: "center", marginTop: 24 },
   saveBtnText: { color: "#fff", fontWeight: "800", fontSize: 17 },
-
-  dangerCard: { backgroundColor: "#fff", padding: 20, borderRadius: 20, marginTop: 8, borderWidth: 1, borderColor: "#fecaca", borderLeftWidth: 4, borderLeftColor: "#ef4444" },
-  dangerTitle: { fontSize: 16, fontWeight: "800", color: "#dc2626", marginBottom: 6 },
-  dangerDesc: { fontSize: 13, color: "#64748b", marginBottom: 16, lineHeight: 20 },
-  dangerBtn: { backgroundColor: "#ef4444", padding: 14, borderRadius: 12, alignItems: "center" },
+  dangerCard: { backgroundColor: colors.card, padding: 20, borderRadius: 20, marginTop: 8, borderWidth: 1, borderColor: colors.expense, borderLeftWidth: 4, borderLeftColor: colors.expense },
+  dangerTitle: { fontSize: 16, fontWeight: "800", color: colors.danger, marginBottom: 6 },
+  dangerDesc: { fontSize: 13, color: colors.textSecondary, marginBottom: 16, lineHeight: 20 },
+  dangerBtn: { backgroundColor: colors.expense, padding: 14, borderRadius: 12, alignItems: "center" },
   dangerBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   dangerActions: { flexDirection: "row", gap: 10, marginTop: 12 },
 });

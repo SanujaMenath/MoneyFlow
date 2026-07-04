@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   User, Camera, Trash2, KeyRound, Mail, AlertTriangle,
   Save, Globe, Bell,
@@ -53,11 +53,23 @@ const ProfilePage = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
-  useEffect(() => {
-    loadProfile();
+  const applyProfile = useCallback((data: Profile) => {
+    setFullName(data.full_name || "");
+    setUsername(data.username || "");
+    setPhone(data.phone || "");
+    setDateOfBirth(data.date_of_birth || "");
+    setCountry(data.country || "");
+    setCurrency(data.currency || "LKR");
+    setLanguage(data.language || "en");
+    setTimezone(data.timezone || "UTC");
+    setDateFormat(data.date_format || "YYYY-MM-DD");
+    setPushEnabled(data.notification_preferences?.push_enabled ?? true);
+    setEmailNotifications(data.notification_preferences?.email_notifications ?? true);
+    setWeeklySummary(data.notification_preferences?.weekly_summary ?? false);
+    setMonthlyReport(data.notification_preferences?.monthly_report ?? true);
   }, []);
 
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -96,28 +108,17 @@ const ProfilePage = () => {
       if (error) throw error;
       setProfile({ ...data, email: user.email });
       applyProfile(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to load profile", err);
     } finally {
       setLoading(false);
     }
-  }
+  }, [applyProfile]);
 
-  function applyProfile(data: Profile) {
-    setFullName(data.full_name || "");
-    setUsername(data.username || "");
-    setPhone(data.phone || "");
-    setDateOfBirth(data.date_of_birth || "");
-    setCountry(data.country || "");
-    setCurrency(data.currency || "LKR");
-    setLanguage(data.language || "en");
-    setTimezone(data.timezone || "UTC");
-    setDateFormat(data.date_format || "YYYY-MM-DD");
-    setPushEnabled(data.notification_preferences?.push_enabled ?? true);
-    setEmailNotifications(data.notification_preferences?.email_notifications ?? true);
-    setWeeklySummary(data.notification_preferences?.weekly_summary ?? false);
-    setMonthlyReport(data.notification_preferences?.monthly_report ?? true);
-  }
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadProfile();
+  }, [loadProfile]);
 
   async function handleSave() {
     setSaving(true);
@@ -149,8 +150,8 @@ const ProfilePage = () => {
 
       if (error) throw error;
       alert("Profile saved successfully");
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) alert(err.message);
     } finally {
       setSaving(false);
     }
@@ -165,6 +166,10 @@ const ProfilePage = () => {
       return;
     }
 
+    defineAvatarUpload(file);
+  }
+
+  async function defineAvatarUpload(file: File) {
     setAvatarUploading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -190,8 +195,8 @@ const ProfilePage = () => {
         .upsert({ id: user.id, avatar_url: avatarUrl, updated_at: new Date().toISOString() });
 
       await loadProfile();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) alert(err.message);
     } finally {
       setAvatarUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -210,8 +215,8 @@ const ProfilePage = () => {
         .upsert({ id: user.id, avatar_url: null, updated_at: new Date().toISOString() });
 
       await loadProfile();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) alert(err.message);
     }
   }
 
@@ -232,8 +237,8 @@ const ProfilePage = () => {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) alert(err.message);
     } finally {
       setSaving(false);
     }
@@ -250,8 +255,8 @@ const ProfilePage = () => {
       if (error) throw error;
       alert("Verification email sent. Check your inbox.");
       setNewEmail("");
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) alert(err.message);
     } finally {
       setSaving(false);
     }
@@ -275,8 +280,8 @@ const ProfilePage = () => {
 
       await supabase.auth.signOut();
       window.location.reload();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) alert(err.message);
     } finally {
       setSaving(false);
     }
@@ -325,6 +330,7 @@ const ProfilePage = () => {
               type="file"
               accept="image/*"
               className="hidden"
+              placeholder="Select an image"
               onChange={handleAvatarPick}
             />
             <button
@@ -446,6 +452,7 @@ const ProfilePage = () => {
               </label>
               <select
                 value={country}
+                title="Select a country"
                 onChange={(e) => setCountry(e.target.value)}
                 className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-bg"
               >
@@ -468,6 +475,7 @@ const ProfilePage = () => {
                 </label>
                 <select
                   value={currency}
+                  title="Select a currency"
                   onChange={(e) => setCurrency(e.target.value)}
                   className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-bg"
                 >
@@ -482,6 +490,7 @@ const ProfilePage = () => {
                 </label>
                 <select
                   value={language}
+                  title="Select a language"
                   onChange={(e) => setLanguage(e.target.value)}
                   className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-bg"
                 >
@@ -496,6 +505,7 @@ const ProfilePage = () => {
                 </label>
                 <select
                   value={timezone}
+                  title="Select a timezone"
                   onChange={(e) => setTimezone(e.target.value)}
                   className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-bg"
                 >
@@ -510,6 +520,7 @@ const ProfilePage = () => {
                 </label>
                 <select
                   value={dateFormat}
+                  title="Select a date format"
                   onChange={(e) => setDateFormat(e.target.value)}
                   className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-bg"
                 >

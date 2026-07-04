@@ -1,133 +1,104 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Alert, 
-  KeyboardAvoidingView, 
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-  StatusBar
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../lib/supabase';
+import React, { useState } from "react";
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-
-const buttonShadow = Platform.select({
-  web: { boxShadow: "0 4px 8px rgba(37,99,235,0.2)" },
-  default: { elevation: 4, shadowColor: '#2563eb', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
-});
+import { supabase } from "../lib/supabase";
+import { useThemeColors } from "../context/useThemeColors";
 
 export default function AuthScreen() {
   const { t } = useTranslation();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const s = makeStyles(colors, insets);
+
   const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleAuth() {
     if (!email || !password) {
       Alert.alert(t("common.error"), t("auth.fillAllFields"));
       return;
     }
-
     if (password.length < 6) {
       Alert.alert(t("common.error"), t("auth.passwordTooShort"));
       return;
     }
 
     setLoading(true);
-    
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ 
-        email, 
-        password,
-        options: {
-          emailRedirectTo: Platform.select({
-            web: window.location.origin,
-            default: 'moneyflowmobile://',
-          }),
-        }
-      });
-      if (error) Alert.alert(t("auth.signUp"), error.message);
-      else Alert.alert(t("common.success"), t("auth.checkEmail"));
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) Alert.alert(t("auth.signIn"), error.message);
+    try {
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        Alert.alert(t("common.success"), t("auth.checkEmail"));
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+    } catch (error: any) {
+      Alert.alert(t("common.error"), error.message);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   }
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+    <KeyboardAvoidingView
+      style={s.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{t("auth.moneyFlow")}</Text>
-          <Text style={styles.subtitle}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24 }}>
+        <View style={s.headerSection}>
+          <Text style={s.appName}>{t("auth.moneyFlow")}</Text>
+          <Text style={s.subtitle}>
             {isSignUp ? t("auth.signUpTitle") : t("auth.signInTitle")}
           </Text>
         </View>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>{t("auth.emailLabel")}</Text>
-          <TextInput 
-            placeholder={t("auth.emailPlaceholder")} 
-            style={styles.input} 
+        <View style={s.formSection}>
+          <Text style={s.label}>{t("auth.emailLabel")}</Text>
+          <TextInput
+            style={s.input}
+            placeholder={t("auth.emailPlaceholder")}
+            placeholderTextColor={colors.placeholder}
             value={email}
-            onChangeText={setEmail} 
-            autoCapitalize="none"
+            onChangeText={setEmail}
             keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
           />
 
-          <Text style={styles.label}>{t("auth.passwordLabel")}</Text>
-          <View style={styles.passwordContainer}>
-            <TextInput 
-              placeholder={t("auth.passwordPlaceholder")} 
-              style={styles.passwordInput}
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword} 
-            />
-            <TouchableOpacity 
-              style={styles.eyeButton}
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              <Ionicons 
-                name={showPassword ? "eye-off" : "eye"} 
-                size={22} 
-                color="#64748b" 
-              />
-            </TouchableOpacity>
-          </View>
+          <Text style={s.label}>{t("auth.passwordLabel")}</Text>
+          <TextInput
+            style={s.input}
+            placeholder={t("auth.passwordPlaceholder")}
+            placeholderTextColor={colors.placeholder}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
-          <TouchableOpacity 
-            style={[styles.button, loading && styles.buttonDisabled, buttonShadow]} 
-            onPress={handleAuth} 
+          <TouchableOpacity
+            style={s.authBtn}
+            onPress={handleAuth}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>{isSignUp ? t("auth.signUp") : t("auth.signIn")}</Text>
+              <Text style={s.authBtnText}>
+                {isSignUp ? t("auth.signUp") : t("auth.signIn")}
+              </Text>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            onPress={() => setIsSignUp(!isSignUp)} 
-            style={styles.toggleContainer}
-          >
-            <Text style={styles.toggleText}>
-              {isSignUp 
-                ? t("auth.goToSignIn") 
-                : t("auth.goToSignUp")}
+          <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)} style={s.switchBtn}>
+            <Text style={s.switchText}>
+              {isSignUp ? t("auth.goToSignIn") : t("auth.goToSignUp")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -136,55 +107,16 @@ export default function AuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  scrollContainer: { flexGrow: 1, justifyContent: 'center', padding: 25 },
-  header: { marginBottom: 40 },
-  title: { fontSize: 36, fontWeight: '900', color: '#2563eb', letterSpacing: -1 },
-  subtitle: { fontSize: 16, color: '#64748b', marginTop: 8 },
-  form: { width: '100%' },
-  label: { fontSize: 14, fontWeight: '600', color: '#1e293b', marginBottom: 8, marginLeft: 4 },
-  input: { 
-    backgroundColor: '#f8fafc',
-    borderWidth: 1, 
-    borderColor: '#e2e8f0', 
-    padding: 16, 
-    borderRadius: 16, 
-    marginBottom: 20,
-    fontSize: 16,
-    color: '#1e293b'
-  },
-  passwordContainer: {
-    position: 'relative',
-    marginBottom: 20,
-  },
-  passwordInput: { 
-    backgroundColor: '#f8fafc',
-    borderWidth: 1, 
-    borderColor: '#e2e8f0', 
-    padding: 16, 
-    borderRadius: 16, 
-    fontSize: 16,
-    color: '#1e293b',
-    paddingRight: 50,
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: 14,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingLeft: 8,
-  },
-  button: { 
-    backgroundColor: '#2563eb', 
-    padding: 18, 
-    borderRadius: 16, 
-    alignItems: 'center',
-  },
-  buttonDisabled: { backgroundColor: '#94a3b8' },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
-  toggleContainer: { marginTop: 25, alignItems: 'center' },
-  toggleText: { color: '#64748b', fontSize: 14, fontWeight: '500' }
+const makeStyles = (colors: any, insets: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  headerSection: { alignItems: "center", marginBottom: 40 },
+  appName: { fontSize: 36, fontWeight: "900", color: colors.primary },
+  subtitle: { fontSize: 15, color: colors.textMuted, marginTop: 8, textAlign: "center" },
+  formSection: { width: "100%", maxWidth: 400, alignSelf: "center" },
+  label: { fontSize: 13, fontWeight: "700", color: colors.textSecondary, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, padding: 16, borderRadius: 14, fontSize: 16, backgroundColor: colors.inputBg, color: colors.text, marginBottom: 16 },
+  authBtn: { backgroundColor: colors.primary, padding: 16, borderRadius: 16, alignItems: "center", marginTop: 8 },
+  authBtnText: { color: "#fff", fontWeight: "800", fontSize: 17 },
+  switchBtn: { alignItems: "center", marginTop: 20 },
+  switchText: { color: colors.primary, fontWeight: "600", fontSize: 14 },
 });

@@ -9,14 +9,21 @@ lerna-debug.log*
 
 # ─── Dependencies ───
 node_modules/
+.pnp/
+.pnp.js
 
 # ─── Build output ───
 dist/
 dist-ssr/
 web-build/
 *.local
+*.tsbuildinfo
 
-# ─── Desktop (Tauri) ───
+# ─── Test ───
+test-results/
+
+# ─── Desktop (Tauri + Vite) ───
+desktop/dist/
 desktop/src-tauri/target/
 desktop/src-tauri/gen/
 
@@ -24,6 +31,7 @@ desktop/src-tauri/gen/
 mobile/.expo/
 mobile/dist/
 mobile/web-build/
+mobile/.expo-export-web/
 mobile/ios/
 mobile/android/
 mobile/.kotlin/
@@ -35,6 +43,10 @@ mobile/*.mobileprovision
 mobile/*.pem
 mobile/expo-env.d.ts
 mobile/.metro-health-check*
+mobile/yarn.lock
+
+# ─── Supabase ───
+supabase/.temp/
 
 # ─── Environment files ───
 .env
@@ -42,29 +54,47 @@ mobile/.metro-health-check*
 .env.*.local
 .env.production
 .env.development
+.env.test
 
 # ─── Editor directories and files ───
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+.vs/
+
+# ─── OS files ───
 .DS_Store
-Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 ehthumbs.db
+Thumbs.db
+Desktop.ini
 
-# ─── TypeScript ───
-*.tsbuildinfo
+# ─── Testing ───
+coverage/
+.nyc_output/
 
-# ─── Rust ───
-desktop/src-tauri/target/
+# ─── Misc ───
+*.orig
+*.bak
+*.swp
+*.swo
+*~
+.cache/
+.tmp/
+temp/
+.cursor/
 
 # ─── Executables ───
 moneyflow.exe
 uninstall.exe
-
-# ─── OS files ───
-*.orig.*
+*.dmg
+*.pkg

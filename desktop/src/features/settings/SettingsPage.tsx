@@ -1,23 +1,72 @@
-import { Check, Coins, User, Palette, Calendar, Target, LogOut, Sun, Moon, Monitor } from "lucide-react";
+import { Check, Coins, User, Palette, Calendar, Target, LogOut, Sun, Moon, Monitor, Languages } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../../lib/supabase";
 import { CURRENCIES, useCurrency } from "../../context/CurrencyContext";
 import { useSavingsGoal } from "../../context/SavingsGoalContext";
 import { useTheme } from "../../context/ThemeContext";
+import { changeLanguage } from "../../lib/i18n";
 import { migrateLocalToCloud } from "./migrationService";
+import type { ThemeMode } from "../../context/ThemeContext";
 
-const themeOptions: { mode: "light" | "dark" | "system"; icon: React.ElementType; label: string }[] = [
+const themeOptions: { mode: ThemeMode; icon: React.ElementType; label: string }[] = [
   { mode: "light", icon: Sun, label: "Light" },
   { mode: "dark", icon: Moon, label: "Dark" },
   { mode: "system", icon: Monitor, label: "System" },
 ];
 
+const languages = [
+  { code: "en", name: "English" },
+  { code: "si", name: "සිංහල" },
+];
+
 const SettingsPage = () => {
+  const { t, i18n } = useTranslation();
   const { currency, setCurrency } = useCurrency();
   const { savingsGoalPercent, setSavingsGoalPercent } = useSavingsGoal();
   const { theme, setTheme } = useTheme();
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Language */}
+      <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+          <div className="p-2 bg-blue-50 rounded-lg">
+            <Languages size={18} className="text-primary" />
+          </div>
+          <div>
+            <h3 className="font-bold text-text-primary text-sm sm:text-base">
+              {t("settings.language")}
+            </h3>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Switch between available languages
+            </p>
+          </div>
+        </div>
+        <div className="p-5 flex gap-3">
+          {languages.map((lang) => {
+            const isSelected = i18n.language === lang.code;
+            return (
+              <button
+                key={lang.code}
+                onClick={() => changeLanguage(lang.code)}
+                className={`relative flex items-center gap-2 px-5 py-3 rounded-xl border-2 transition-all duration-200 font-semibold text-sm ${
+                  isSelected
+                    ? "border-primary bg-blue-50 text-primary"
+                    : "border-border hover:border-primary/40 text-text-secondary"
+                }`}
+              >
+                {isSelected && (
+                  <span className="bg-primary rounded-full p-0.5">
+                    <Check size={10} className="text-white" />
+                  </span>
+                )}
+                {lang.name}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Savings Goal Section */}
       <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-3">
@@ -26,10 +75,10 @@ const SettingsPage = () => {
           </div>
           <div>
             <h3 className="font-bold text-text-primary text-sm sm:text-base">
-              Savings Goal
+              {t("settings.savingsGoal")}
             </h3>
             <p className="text-xs text-text-secondary mt-0.5">
-              Percentage of income to save each period
+              {t("settings.savingsGoalDesc")}
             </p>
           </div>
         </div>
@@ -56,12 +105,7 @@ const SettingsPage = () => {
           />
 
           <p className="text-xs text-text-secondary leading-relaxed">
-            Saving{" "}
-            <span className="font-bold text-text-primary">
-              {savingsGoalPercent}%
-            </span>{" "}
-            of your income builds long-term financial security. Expert advice
-            usually recommends at least 20%.
+            {t("settings.savePercent", { percent: savingsGoalPercent })}
           </p>
         </div>
       </section>
@@ -74,7 +118,7 @@ const SettingsPage = () => {
           </div>
           <div>
             <h3 className="font-bold text-text-primary text-sm sm:text-base">
-              Currency
+              {t("settings.currency")}
             </h3>
             <p className="text-xs text-text-secondary mt-0.5">
               Choose the currency used across the entire app
@@ -146,7 +190,7 @@ const SettingsPage = () => {
           </div>
           <div>
             <h3 className="font-bold text-text-primary text-sm sm:text-base">
-              Theme
+              {t("settings.theme")}
             </h3>
             <p className="text-xs text-text-secondary mt-0.5">
               Choose your preferred appearance
@@ -229,7 +273,7 @@ const SettingsPage = () => {
               </div>
               <div>
                 <h3 className="font-bold text-text-primary text-sm sm:text-base">
-                  Sign Out
+                  {t("settings.signOut")}
                 </h3>
                 <p className="text-xs text-text-secondary mt-0.5">
                   Sign out of your MoneyFlow account
@@ -240,7 +284,7 @@ const SettingsPage = () => {
               onClick={() => supabase.auth.signOut()}
               className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
             >
-              Sign Out
+              {t("settings.signOut")}
             </button>
           </div>
         </div>
