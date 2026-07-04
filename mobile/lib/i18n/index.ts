@@ -1,9 +1,10 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
+
 import en from "./locales/en.json";
 import si from "./locales/si.json";
 
-void i18n.use(initReactI18next).init({
+i18n.use(initReactI18next).init({
   resources: {
     en: { translation: en },
     si: { translation: si },
@@ -13,6 +14,8 @@ void i18n.use(initReactI18next).init({
   interpolation: {
     escapeValue: false,
   },
+  returnNull: false,
+  returnEmptyString: false,
 });
 
 export default i18n;

@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 4173;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({
@@ -9,20 +9,19 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
+  timeout: 30000,
   reporter: [["html", { outputFolder: "e2e-report" }], ["list"]],
   use: {
     baseURL: BASE_URL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
-  webServer: [
-    {
-      command: `npx serve mobile/.expo-export-web -p ${PORT} --no-clipboard --single`,
-      port: PORT,
-      reuseExistingServer: !process.env.CI,
-      cwd: ".",
-    },
-  ],
+  webServer: {
+    command: `npx serve mobile/.expo-export-web -p ${PORT} --no-clipboard`,
+    port: PORT,
+    reuseExistingServer: !process.env.CI,
+    cwd: __dirname,
+  },
   projects: [
     {
       name: "chromium",

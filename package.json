@@ -11,10 +11,11 @@
     "build:shared": "npm run build -w shared",
     "dev:desktop": "npm run dev -w desktop",
     "dev:mobile": "npm start -w mobile",
-    "build:web": "npm run export:web -w mobile",
     "test": "npm run test -w shared && npm run test -w desktop",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "build:e2e": "npm run export:web -w mobile",
+    "pretest:e2e": "npm run build:e2e",
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,css,md}\""
