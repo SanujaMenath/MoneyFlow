@@ -24,6 +24,7 @@ export {
   expenseCategories,
   SHARED_EXPENSE_CATEGORIES,
   SHARED_INCOME_CATEGORIES,
+  categoryI18nKeys,
 } from "./constants/categories";
 
 export {

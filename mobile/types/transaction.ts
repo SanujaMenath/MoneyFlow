@@ -1,9 +1,9 @@
 import type { Transaction, RecurringFrequency } from "@moneyflow/shared";
-import { incomeCategories, expenseCategories } from "@moneyflow/shared/constants/categories";
+import { incomeCategories, expenseCategories, categoryI18nKeys } from "@moneyflow/shared/constants/categories";
 import { frequencies } from "@moneyflow/shared/constants/frequencies";
 
 export type { Transaction, RecurringFrequency };
-export { incomeCategories, expenseCategories, frequencies };
+export { incomeCategories, expenseCategories, frequencies, categoryI18nKeys };
 
 export interface TransactionDB {
   id: number;

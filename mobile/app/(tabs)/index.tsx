@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from "react-i18next";
 import { fromDB } from '../../types/transaction';
 import type { Transaction } from '../../types/transaction';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -20,6 +21,7 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { format } = useCurrency();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -62,7 +64,7 @@ export default function DashboardScreen() {
   const aiInsight = stats.expenses > stats.income
     ? "Your spending this period has exceeded your income. Try identifying non-essential recurring expenses to balance your flow."
     : stats.income === 0
-    ? "Start logging your income and expenses to get personalised financial insights."
+    ? t("dashboard.emptyInsight")
     : "Great job! You are living below your means. This is a perfect time to set aside your surplus for long-term investments.";
 
   const onRefresh = () => { setRefreshing(true); fetchData(); };
@@ -78,7 +80,7 @@ export default function DashboardScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.header}>
-        <Text style={styles.greeting}>Dashboard</Text>
+        <Text style={styles.greeting}>{t("dashboard.title")}</Text>
         <TouchableOpacity onPress={() => router.push('/add')}>
           <Ionicons name="add-circle" size={40} color="#2563eb" />
         </TouchableOpacity>
@@ -86,7 +88,7 @@ export default function DashboardScreen() {
 
       {/* Total Balance */}
       <View style={[styles.mainCard, mainCardShadow]}>
-        <Text style={styles.cardLabel}>Total Balance</Text>
+        <Text style={styles.cardLabel}>{t("dashboard.totalBalance")}</Text>
         <Text style={styles.balanceText}>{format(stats.balance)}</Text>
       </View>
 
@@ -94,19 +96,19 @@ export default function DashboardScreen() {
       <View style={styles.statsRow}>
         <View style={[styles.statBox, { backgroundColor: '#dcfce7' }]}>
           <Ionicons name="arrow-down-circle" size={24} color="#166534" />
-          <Text style={styles.statLabel}>Income</Text>
+          <Text style={styles.statLabel}>{t("dashboard.income")}</Text>
           <Text style={[styles.statValue, { color: '#166534' }]}>+{format(stats.income)}</Text>
         </View>
         <View style={[styles.statBox, { backgroundColor: '#fee2e2' }]}>
           <Ionicons name="arrow-up-circle" size={24} color="#991b1b" />
-          <Text style={styles.statLabel}>Expenses</Text>
+          <Text style={styles.statLabel}>{t("dashboard.expenses")}</Text>
           <Text style={[styles.statValue, { color: '#991b1b' }]}>-{format(stats.expenses)}</Text>
         </View>
       </View>
 
       {/* Donut Chart + AI Insight */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Income vs Expenses</Text>
+        <Text style={styles.sectionTitle}>{t("dashboard.incomeVsExpenses")}</Text>
         <AnalyticsDonut income={stats.income} expenses={stats.expenses} />
       </View>
 
@@ -114,11 +116,11 @@ export default function DashboardScreen() {
       <View style={styles.aiCard}>
         <View style={styles.aiHeader}>
           <Ionicons name="bulb" size={20} color="#fbbf24" />
-          <Text style={styles.aiTitle}>AI Insight</Text>
+          <Text style={styles.aiTitle}>{t("dashboard.aiInsight")}</Text>
         </View>
         <Text style={styles.aiText}>{aiInsight}</Text>
         <View style={styles.healthRow}>
-          <Text style={styles.healthLabel}>Financial Health Score</Text>
+          <Text style={styles.healthLabel}>{t("dashboard.healthScore")}</Text>
           <Text style={styles.healthValue}>{healthScore}%</Text>
         </View>
       </View>
@@ -128,7 +130,7 @@ export default function DashboardScreen() {
 
       {/* Quick link to transactions */}
       <TouchableOpacity style={styles.linkCard} onPress={() => router.push('/transactions')}>
-        <Text style={styles.linkText}>View All Transactions</Text>
+        <Text style={styles.linkText}>{t("dashboard.viewAll")}</Text>
         <Ionicons name="chevron-forward" size={20} color="#64748b" />
       </TouchableOpacity>
 

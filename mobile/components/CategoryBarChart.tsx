@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useCurrency } from "../context/CurrencyContext";
 
 const COLORS = ["#2563eb", "#7c3aed", "#db2777", "#d97706", "#10b981", "#ef4444"];
@@ -14,13 +15,14 @@ interface Props {
 }
 
 export default function CategoryBarChart({ data }: Props) {
+  const { t } = useTranslation();
   const { format } = useCurrency();
   const maxAmount = data.length > 0 ? Math.max(...data.map((d) => d.amount)) : 1;
 
   if (data.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No expense categories yet.</Text>
+        <Text style={styles.emptyText}>{t("components.noExpenseCategories")}</Text>
       </View>
     );
   }

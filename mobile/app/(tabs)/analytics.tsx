@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from "react-native";
 import { supabase } from "../../lib/supabase";
+import { useTranslation } from "react-i18next";
 import { fromDB } from "../../types/transaction";
 import type { Transaction } from "../../types/transaction";
 import { useFocusEffect } from "expo-router";
@@ -10,6 +11,7 @@ import { processRecurringTransactions } from "../../services/transactionService"
 import CategoryBarChart from "../../components/CategoryBarChart";
 
 export default function AnalyticsScreen() {
+  const { t } = useTranslation();
   const { format } = useCurrency();
   const insets = useSafeAreaInsets();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -61,38 +63,38 @@ export default function AnalyticsScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} />}
     >
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <Text style={styles.title}>Analytics</Text>
+        <Text style={styles.title}>{t("analytics.title")}</Text>
       </View>
 
       {/* Category Breakdown */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Expenses by Category</Text>
+        <Text style={styles.sectionTitle}>{t("analytics.expensesByCategory")}</Text>
         <CategoryBarChart data={categoryData} />
       </View>
 
       {/* Key Insights */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Key Spending Insights</Text>
+        <Text style={styles.sectionTitle}>{t("analytics.keyInsights")}</Text>
         {topTwo.length > 0 && (
           <>
             <View style={styles.insightRow}>
-              <Text style={styles.insightLabel}>Biggest Expense</Text>
+              <Text style={styles.insightLabel}>{t("analytics.biggestExpense")}</Text>
               <Text style={styles.insightValue}>{topTwo[0].category}</Text>
-              <Text style={styles.insightPct}>{biggestPct}% of total</Text>
+              <Text style={styles.insightPct}>{biggestPct}{t("analytics.percentOfTotal")}</Text>
             </View>
             {topTwo.length > 1 && (
               <View style={styles.insightRow}>
-                <Text style={styles.insightLabel}>Second Biggest</Text>
+                <Text style={styles.insightLabel}>{t("analytics.secondBiggest")}</Text>
                 <Text style={styles.insightValue}>{topTwo[1].category}</Text>
                 <Text style={styles.insightPct}>
-                  {Math.round((topTwo[1].amount / totalSpend) * 100)}% of total
+                  {Math.round((topTwo[1].amount / totalSpend) * 100)}{t("analytics.percentOfTotal")}
                 </Text>
               </View>
             )}
           </>
         )}
         <View style={[styles.insightRow, { borderBottomWidth: 0 }]}>
-          <Text style={styles.insightLabel}>Total Tracked Spend</Text>
+          <Text style={styles.insightLabel}>{t("analytics.totalTrackedSpend")}</Text>
           <Text style={[styles.insightValue, { color: "#ef4444", fontSize: 18 }]}>{format(totalSpend)}</Text>
         </View>
       </View>

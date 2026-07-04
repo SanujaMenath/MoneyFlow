@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useCurrency } from "../context/CurrencyContext";
 import { useSavingsGoal } from "../context/SavingsGoalContext";
 
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function SavingsGoalCard({ income, expenses }: Props) {
+  const { t } = useTranslation();
   const { format } = useCurrency();
   const { savingsGoalPercent } = useSavingsGoal();
 
@@ -16,24 +18,24 @@ export default function SavingsGoalCard({ income, expenses }: Props) {
   const actuallySaved = income - expenses;
   const progress = goalAmount > 0 ? Math.max(0, Math.min(100, (actuallySaved / goalAmount) * 100)) : 0;
 
-  let statusText = "Needs attention";
+  let statusText = t("components.needsAttention");
   let statusColor = "#ef4444";
-  if (progress >= 100) { statusText = "On track"; statusColor = "#10b981"; }
-  else if (progress >= 50) { statusText = "Almost there"; statusColor = "#f59e0b"; }
+  if (progress >= 100) { statusText = t("components.onTrack"); statusColor = "#10b981"; }
+  else if (progress >= 50) { statusText = t("components.almostThere"); statusColor = "#f59e0b"; }
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Savings Goal ({savingsGoalPercent}%)</Text>
+      <Text style={styles.title}>{t("components.savingsGoal", { percent: savingsGoalPercent })}</Text>
       <View style={styles.progressBarBg}>
         <View style={[styles.progressBarFill, { width: `${Math.min(progress, 100)}%`, backgroundColor: statusColor }]} />
       </View>
       <View style={styles.row}>
         <View>
-          <Text style={styles.label}>Goal</Text>
+          <Text style={styles.label}>{t("components.goal")}</Text>
           <Text style={styles.value}>{format(goalAmount)}</Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
-          <Text style={styles.label}>Saved</Text>
+          <Text style={styles.label}>{t("components.saved")}</Text>
           <Text style={[styles.value, { color: actuallySaved >= goalAmount ? "#10b981" : "#ef4444" }]}>
             {format(actuallySaved)}
           </Text>
@@ -42,7 +44,7 @@ export default function SavingsGoalCard({ income, expenses }: Props) {
       <Text style={[styles.status, { color: statusColor }]}>{statusText}</Text>
       {actuallySaved > goalAmount && (
         <Text style={styles.surplus}>
-          Surplus of {format(actuallySaved - goalAmount)} — consider investing!
+          {t("components.surplus", { amount: format(actuallySaved - goalAmount) })}
         </Text>
       )}
     </View>

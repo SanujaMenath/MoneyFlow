@@ -78,6 +78,7 @@ export const SharedListDetailView = ({
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onBack}
+            title="Back"
             className="p-2 rounded-xl hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600 shrink-0"
           >
             <ArrowLeft size={18} />
