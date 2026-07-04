@@ -45,6 +45,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="add" options={{ presentation: 'modal', headerShown: true, title: 'New Transaction' }} />
+          <Stack.Screen name="profile" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
         </Stack>
       </SavingsGoalProvider>

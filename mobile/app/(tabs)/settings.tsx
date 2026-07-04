@@ -32,6 +32,18 @@ export default function SettingsScreen() {
         <Text style={styles.title}>{t("settings.title")}</Text>
       </View>
 
+      {/* Profile */}
+      <TouchableOpacity style={styles.profileCard} onPress={() => router.push("/profile")}>
+        <View style={styles.profileIcon}>
+          <Text style={styles.profileIconText}>👤</Text>
+        </View>
+        <View style={styles.profileInfo}>
+          <Text style={styles.profileName}>{t("settings.myProfile")}</Text>
+          <Text style={styles.profileDesc}>{t("settings.myProfileDesc")}</Text>
+        </View>
+        <Text style={styles.chevron}>›</Text>
+      </TouchableOpacity>
+
       {/* Savings Goal */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>{t("settings.savingsGoal")}</Text>
@@ -87,6 +99,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc', paddingHorizontal: 20 },
   header: { marginBottom: 20 },
   title: { fontSize: 28, fontWeight: '800', color: '#1e293b' },
+  profileCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 16, marginTop: 16, borderWidth: 1, borderColor: '#e2e8f0' },
+  profileIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eff6ff', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  profileIconText: { fontSize: 20 },
+  profileInfo: { flex: 1 },
+  profileName: { fontSize: 15, fontWeight: '700', color: '#1e293b' },
+  profileDesc: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
+  chevron: { fontSize: 24, color: '#94a3b8', fontWeight: '300' },
   card: { backgroundColor: '#fff', padding: 20, borderRadius: 20, marginTop: 16, borderWidth: 1, borderColor: '#e2e8f0' },
   sectionTitle: { fontSize: 14, fontWeight: '700', color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8 },
   description: { fontSize: 13, color: '#94a3b8', marginBottom: 16 },

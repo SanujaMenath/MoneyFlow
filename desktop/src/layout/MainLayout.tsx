@@ -5,9 +5,10 @@ import {
   BarChart3,
   Settings,
   Users,
+  User,
 } from "lucide-react";
 
-type TabName = "Dashboard" | "Transactions" | "Analytics" | "Settings" | "Collaboration";
+type TabName = "Dashboard" | "Transactions" | "Analytics" | "Settings" | "Collaboration" | "Profile";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -143,6 +144,7 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
             System
           </p>
 
+          <NavBtn name="Profile" icon={User} label="Profile" activeTab={activeTab} setActiveTab={setActiveTab} />
           <NavBtn name="Settings" icon={Settings} label="Settings" activeTab={activeTab} setActiveTab={setActiveTab} />
 
           {/* Version */}

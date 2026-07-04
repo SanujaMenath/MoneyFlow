@@ -18,6 +18,16 @@ export type {
   CreateSharedTransactionData,
 } from "./types/collaboration";
 
+export type {
+  Profile,
+  NotificationPreferences,
+  ProfileUpdate,
+  PasswordChange,
+  EmailChange,
+  AccountDeletionRequest,
+} from "./types/profile";
+export { DEFAULT_NOTIFICATION_PREFERENCES } from "./types/profile";
+
 // Constants
 export {
   incomeCategories,
@@ -37,6 +47,13 @@ export {
   frequencies,
 } from "./constants/frequencies";
 export type { FrequencyOption } from "./constants/frequencies";
+
+export {
+  COUNTRIES,
+  LANGUAGES,
+  TIMEZONES,
+  DATE_FORMATS,
+} from "./constants/profile";
 
 // Utils
 export { getDatePresets, formatDateString, toLocalDate } from "./utils/date";
