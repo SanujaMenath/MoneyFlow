@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Plus, RefreshCw } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw, Edit3, Check, X } from "lucide-react";
 import type {
   SharedList, SharedListMember, SharedTransaction,
   BalanceSummary, SettlementSuggestion, ActivityLog,
@@ -28,19 +28,24 @@ interface SharedListDetailViewProps {
   onRemoveMember: (userId: string) => Promise<void>;
   onTransferOwnership: (userId: string) => Promise<void>;
   onAddTransaction: (data: CreateSharedTransactionData) => Promise<void>;
+  onUpdateTransaction?: (id: string, data: CreateSharedTransactionData) => Promise<void>;
   onDeleteTransaction: (id: string) => Promise<void>;
   onRefresh: () => Promise<void>;
+  onUpdateList?: (id: string, updates: Partial<SharedList>) => Promise<void>;
 }
 
 export const SharedListDetailView = ({
   list, currentUserId,   members, transactions, txLoading,
   balances, settlements, activityLogs,
   onBack, onInvite, onRemoveMember, onTransferOwnership,
-  onAddTransaction, onDeleteTransaction, onRefresh,
+  onAddTransaction, onUpdateTransaction, onDeleteTransaction, onRefresh, onUpdateList,
 }: SharedListDetailViewProps) => {
   const [activeDetailTab, setActiveDetailTab] = useState<DetailTab>("transactions");
   const [showAddTx, setShowAddTx] = useState(false);
   const [editTx, setEditTx] = useState<SharedTransaction | null>(null);
+  const [editingList, setEditingList] = useState(false);
+  const [editName, setEditName] = useState(list.name);
+  const [editDesc, setEditDesc] = useState(list.description || "");
 
   const isOwner = members.find((m) => m.user_id === currentUserId)?.role === "owner";
 
@@ -70,21 +75,68 @@ export const SharedListDetailView = ({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onBack}
-            className="p-2 rounded-xl hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
+            className="p-2 rounded-xl hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600 shrink-0"
           >
             <ArrowLeft size={18} />
           </button>
-          <div>
-            <h3 className="font-semibold text-slate-800 text-base tracking-tight">{list.name}</h3>
-            {list.description && (
-              <p className="text-slate-400 text-xs mt-0.5">{list.description}</p>
-            )}
-          </div>
+          {editingList ? (
+            <div className="flex items-center gap-2 flex-1">
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="p-1.5 border border-border rounded-lg text-sm font-semibold flex-1 min-w-0"
+                placeholder="List name"
+              />
+              <input
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                className="p-1.5 border border-border rounded-lg text-xs flex-1 min-w-0"
+                placeholder="Description (optional)"
+              />
+              <button
+                onClick={async () => {
+                  if (onUpdateList && editName.trim()) {
+                    await onUpdateList(list.id, { name: editName.trim(), description: editDesc.trim() || null } as Partial<SharedList>);
+                  }
+                  setEditingList(false);
+                }}
+                className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-50 transition-all"
+                title="Save"
+              >
+                <Check size={16} />
+              </button>
+              <button
+                onClick={() => { setEditingList(false); setEditName(list.name); setEditDesc(list.description || ""); }}
+                className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-50 transition-all"
+                title="Cancel"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="min-w-0">
+                <h3 className="font-semibold text-slate-800 text-base tracking-tight truncate">{list.name}</h3>
+                {list.description && (
+                  <p className="text-slate-400 text-xs mt-0.5 truncate">{list.description}</p>
+                )}
+              </div>
+              {isOwner && (
+                <button
+                  onClick={() => { setEditName(list.name); setEditDesc(list.description || ""); setEditingList(true); }}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all shrink-0"
+                  title="Edit list"
+                >
+                  <Edit3 size={14} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={onRefresh}
             className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
@@ -129,6 +181,7 @@ export const SharedListDetailView = ({
           editTx={editTx}
           onClose={() => { setShowAddTx(false); setEditTx(null); }}
           onSave={handleSaveTx}
+          onUpdate={onUpdateTransaction}
         />
       ) : (
         <>

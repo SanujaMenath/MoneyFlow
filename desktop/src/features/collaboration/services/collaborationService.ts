@@ -1,5 +1,5 @@
 import { supabase } from "../../../lib/supabase";
-import { computeSplits } from "@moneyflow/shared/utils/splits";
+import { computeSplits, type SplitMethod } from "@moneyflow/shared/utils/splits";
 import type {
   SharedList, SharedListMember, Invitation, SharedTransaction,
   TransactionSplit, ActivityLog, CreateSharedListData,
@@ -301,6 +301,37 @@ export const acceptInvitation = async (invitationId: string): Promise<void> => {
   await logActivity(inv.list_id, userId, "member_joined", {});
 };
 
+export const acceptInvitationByToken = async (token: string): Promise<void> => {
+  const userId = await requireUser();
+
+  const { data: inv, error } = await supabase
+    .from("shared_invitations")
+    .select("id, list_id, invited_email, status")
+    .eq("token", token)
+    .single();
+
+  if (error || !inv) throw new Error("Invitation not found or expired.");
+  if (inv.status !== "pending") throw new Error("Invitation has already been responded to.");
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email || user.email.toLowerCase() !== inv.invited_email.toLowerCase()) {
+    throw new Error("This invitation was sent to a different email address.");
+  }
+
+  const { error: memberError } = await supabase
+    .from("shared_list_members")
+    .insert([{ list_id: inv.list_id, user_id: userId, role: "member" }]);
+
+  if (memberError) throw memberError;
+
+  await supabase
+    .from("shared_invitations")
+    .update({ status: "accepted", responded_at: new Date().toISOString() })
+    .eq("id", inv.id);
+
+  await logActivity(inv.list_id, userId, "member_joined", {});
+};
+
 export const declineInvitation = async (invitationId: string): Promise<void> => {
   const { error } = await supabase
     .from("shared_invitations")
@@ -389,17 +420,46 @@ export const createSharedTransaction = async (data: CreateSharedTransactionData)
   };
 };
 
-export const updateSharedTransaction = async (id: string, updates: Partial<SharedTransaction>): Promise<void> => {
+export const updateSharedTransaction = async (
+  id: string,
+  updates: Partial<SharedTransaction> & { splits?: CreateSharedTransactionData["splits"] },
+): Promise<void> => {
   const userId = await requireUser();
+
+  const txUpdates: Record<string, unknown> = { ...updates, updated_at: new Date().toISOString() };
+  delete txUpdates.splits;
+  delete txUpdates.list_id;
+
   const { error } = await supabase
     .from("shared_transactions")
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update(txUpdates)
     .eq("id", id);
 
   if (error) throw error;
 
-  const { data: tx } = await supabase.from("shared_transactions").select("list_id").eq("id", id).single();
-  if (tx) await logActivity(tx.list_id, userId, "expense_edited", { transaction_id: id });
+  if (updates.splits) {
+    const { data: txMeta } = await supabase
+      .from("shared_transactions")
+      .select("amount, split_method")
+      .eq("id", id)
+      .single();
+
+    if (txMeta) {
+      await supabase.from("shared_transaction_splits").delete().eq("transaction_id", id);
+
+      const splitAmounts = computeSplits(txMeta.amount, txMeta.split_method as SplitMethod, updates.splits);
+      const newSplits = splitAmounts.map((s) => ({
+        transaction_id: id,
+        user_id: s.user_id,
+        amount: s.amount,
+        percentage: s.percentage || null,
+      }));
+      await supabase.from("shared_transaction_splits").insert(newSplits);
+    }
+  }
+
+  const { data: txRecord } = await supabase.from("shared_transactions").select("list_id").eq("id", id).single();
+  if (txRecord) await logActivity(txRecord.list_id, userId, "expense_edited", { transaction_id: id });
 };
 
 export const deleteSharedTransaction = async (id: string): Promise<void> => {

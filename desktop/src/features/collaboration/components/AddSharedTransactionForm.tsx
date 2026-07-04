@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { X } from "lucide-react";
+import { supabase } from "../../../lib/supabase";
 import type { SharedListMember, SharedTransaction, SplitMethod, CreateSharedTransactionData } from "../../../types/collaboration";
 import { SHARED_EXPENSE_CATEGORIES, SHARED_INCOME_CATEGORIES } from "../../../types/collaboration";
 
@@ -9,9 +10,10 @@ interface AddSharedTransactionFormProps {
   editTx?: SharedTransaction | null;
   onClose: () => void;
   onSave: (data: CreateSharedTransactionData) => Promise<void>;
+  onUpdate?: (id: string, data: CreateSharedTransactionData) => Promise<void>;
 }
 
-export const AddSharedTransactionForm = ({ members, listId, editTx, onClose, onSave }: AddSharedTransactionFormProps) => {
+export const AddSharedTransactionForm = ({ members, listId, editTx, onClose, onSave, onUpdate }: AddSharedTransactionFormProps) => {
   const today = new Date().toISOString().split("T")[0];
   const [amount, setAmount] = useState(editTx ? String(editTx.amount / 100) : "");
   const [type, setType] = useState<"income" | "expense">(editTx?.type || "expense");
@@ -21,17 +23,43 @@ export const AddSharedTransactionForm = ({ members, listId, editTx, onClose, onS
   const [splitMethod, setSplitMethod] = useState<SplitMethod>(editTx?.split_method || "equal");
   const [saving, setSaving] = useState(false);
 
-  const [customSplits, setCustomSplits] = useState<Record<string, string>>(() => {
-    if (!editTx) return {};
-    return {};
-  });
-  const [percentageSplits, setPercentageSplits] = useState<Record<string, string>>(() => {
-    if (!editTx) return {};
-    return {};
-  });
+  const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
+  const [percentageSplits, setPercentageSplits] = useState<Record<string, string>>({});
 
   const activeMembers = members.filter((m) => m.role === "owner" || m.role === "member");
   const [excludedMembers, setExcludedMembers] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!editTx) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCustomSplits({});
+      setPercentageSplits({});
+      setExcludedMembers([]);
+      return;
+    }
+    supabase
+      .from("shared_transaction_splits")
+      .select("user_id, amount, percentage")
+      .eq("transaction_id", editTx.id)
+      .then(({ data }) => {
+        if (data) {
+          const custom: Record<string, string> = {};
+          const pct: Record<string, string> = {};
+          const excluded: string[] = [];
+          for (const s of data) {
+            custom[s.user_id] = String((s.amount as number) / 100);
+            if (s.percentage !== null) pct[s.user_id] = String(s.percentage);
+          }
+          const splitUserIds = new Set(data.map((s: { user_id: string }) => s.user_id));
+          for (const m of activeMembers) {
+            if (!splitUserIds.has(m.user_id)) excluded.push(m.user_id);
+          }
+          setCustomSplits(custom);
+          setPercentageSplits(pct);
+          setExcludedMembers(excluded);
+        }
+      });
+  }, [editTx?.id]);
 
   const splitMembers = activeMembers.filter((m) => !excludedMembers.includes(m.user_id));
 
@@ -68,7 +96,7 @@ export const AddSharedTransactionForm = ({ members, listId, editTx, onClose, onS
 
     setSaving(true);
     try {
-      await onSave({
+      const payload: CreateSharedTransactionData = {
         list_id: listId,
         amount: amountCents,
         type,
@@ -77,7 +105,12 @@ export const AddSharedTransactionForm = ({ members, listId, editTx, onClose, onS
         notes: notes.trim() || undefined,
         split_method: splitMethod,
         splits,
-      });
+      };
+      if (editTx && onUpdate) {
+        await onUpdate(editTx.id, payload);
+      } else {
+        await onSave(payload);
+      }
       onClose();
     } catch (err) {
       alert("Failed to save transaction.");

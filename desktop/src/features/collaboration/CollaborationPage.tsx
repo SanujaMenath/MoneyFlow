@@ -3,6 +3,7 @@ import { Inbox, X, Check } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import type { SharedList, CreateSharedTransactionData } from "../../types/collaboration";
 import { useCollaboration } from "./hooks/useCollaboration";
+import * as CollabService from "./services/collaborationService";
 import { SharedListsOverview } from "./components/SharedListsOverview";
 import { CreateSharedListDialog } from "./components/CreateSharedListDialog";
 import { SharedListDetailView } from "./components/SharedListDetailView";
@@ -10,11 +11,11 @@ import { SharedListDetailView } from "./components/SharedListDetailView";
 const CollaborationPage = () => {
   const {
     lists, invitations, loading,
-    createList, deleteList, inviteUser,
+    createList, deleteList, updateList, inviteUser,
     acceptInvite, declineInvite,
     removeMember, transferOwnership,
     transactions, txLoading,
-    addTransaction, deleteTransaction,
+    addTransaction, updateTransactionWithSplits, deleteTransaction,
     balances, settlements, activityLogs, members,
     loadAll,
   } = useCollaboration();
@@ -28,6 +29,24 @@ const CollaborationPage = () => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) setCurrentUserId(user.id);
     });
+  }, []);
+
+  // Handle accept-invitation from email link (e.g., /collaboration?accept=TOKEN)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("accept");
+    if (!token) return;
+
+    (async () => {
+      try {
+        await CollabService.acceptInvitationByToken(token);
+        window.history.replaceState({}, "", window.location.pathname);
+        window.location.reload();
+      } catch (err) {
+        console.error("Failed to accept invitation:", err);
+        alert("Could not accept invitation. It may have expired or been cancelled.");
+      }
+    })();
   }, []);
 
   const handleSelectList = async (list: SharedList) => {
@@ -79,8 +98,10 @@ const CollaborationPage = () => {
           onRemoveMember={(userId) => removeMember(selectedList.id, userId)}
           onTransferOwnership={(userId) => transferOwnership(selectedList.id, userId)}
           onAddTransaction={handleAddTransaction}
+          onUpdateTransaction={(id, data) => updateTransactionWithSplits(id, data)}
           onDeleteTransaction={handleDeleteTransaction}
           onRefresh={handleRefresh}
+          onUpdateList={updateList}
         />
       </div>
     );

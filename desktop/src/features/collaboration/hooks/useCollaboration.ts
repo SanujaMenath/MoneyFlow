@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../../lib/supabase";
 import type {
   SharedList, Invitation, SharedTransaction,
   BalanceSummary, SettlementSuggestion, ActivityLog, SharedListMember,
+  CreateSharedTransactionData,
 } from "../../../types/collaboration";
 import * as CollabService from "../services/collaborationService";
 
@@ -10,6 +11,7 @@ export const useCollaboration = () => {
   const [lists, setLists] = useState<SharedList[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
+  const activeListIdRef = useRef<string | null>(null);
 
   const refreshLists = useCallback(async () => {
     try {
@@ -29,6 +31,22 @@ export const useCollaboration = () => {
     }
   }, []);
 
+  const [transactions, setTransactions] = useState<SharedTransaction[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
+
+  const loadTransactions = useCallback(async (listId: string) => {
+    activeListIdRef.current = listId;
+    setTxLoading(true);
+    try {
+      const data = await CollabService.getSharedTransactions(listId);
+      setTransactions(data);
+    } catch (err) {
+      console.error("Failed to load transactions:", err);
+    } finally {
+      setTxLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -42,10 +60,14 @@ export const useCollaboration = () => {
       .on("postgres_changes", { event: "*", schema: "public", table: "shared_lists" }, refreshLists)
       .on("postgres_changes", { event: "*", schema: "public", table: "shared_list_members" }, refreshLists)
       .on("postgres_changes", { event: "*", schema: "public", table: "shared_invitations" }, refreshInvitations)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shared_transactions" }, () => {
+        const id = activeListIdRef.current;
+        if (id) loadTransactions(id);
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [refreshLists, refreshInvitations]);
+  }, [refreshLists, refreshInvitations, loadTransactions]);
 
   const createList = useCallback(async (name: string, description: string, currency: string) => {
     await CollabService.createSharedList({ name, description, currency });
@@ -55,6 +77,11 @@ export const useCollaboration = () => {
   const deleteList = useCallback(async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this shared list? This cannot be undone.")) return;
     await CollabService.deleteSharedList(id);
+    await refreshLists();
+  }, [refreshLists]);
+
+  const updateList = useCallback(async (id: string, updates: Partial<SharedList>) => {
+    await CollabService.updateSharedList(id, updates);
     await refreshLists();
   }, [refreshLists]);
 
@@ -72,21 +99,6 @@ export const useCollaboration = () => {
     await CollabService.declineInvitation(invitationId);
     await refreshInvitations();
   }, [refreshInvitations]);
-
-  const [transactions, setTransactions] = useState<SharedTransaction[]>([]);
-  const [txLoading, setTxLoading] = useState(false);
-
-  const loadTransactions = useCallback(async (listId: string) => {
-    setTxLoading(true);
-    try {
-      const data = await CollabService.getSharedTransactions(listId);
-      setTransactions(data);
-    } catch (err) {
-      console.error("Failed to load transactions:", err);
-    } finally {
-      setTxLoading(false);
-    }
-  }, []);
 
   const [balances, setBalances] = useState<BalanceSummary[]>([]);
   const [settlements, setSettlements] = useState<SettlementSuggestion[]>([]);
@@ -130,6 +142,11 @@ export const useCollaboration = () => {
     await loadTransactions(data.list_id);
   }, [loadTransactions]);
 
+  const updateTransactionWithSplits = useCallback(async (id: string, data: CreateSharedTransactionData) => {
+    await CollabService.updateSharedTransaction(id, data);
+    await loadTransactions(data.list_id);
+  }, [loadTransactions]);
+
   const editTransaction = useCallback(async (id: string, updates: Partial<SharedTransaction>, listId: string) => {
     await CollabService.updateSharedTransaction(id, updates);
     await loadTransactions(listId);
@@ -153,12 +170,12 @@ export const useCollaboration = () => {
 
   return {
     lists, invitations, loading,
-    createList, deleteList, inviteUser,
+    createList, deleteList, updateList, inviteUser,
     acceptInvite, declineInvite,
     removeMember, transferOwnership,
     refreshLists, refreshInvitations,
     transactions, txLoading, loadTransactions,
-    addTransaction, editTransaction, deleteTransaction,
+    addTransaction, updateTransactionWithSplits, editTransaction, deleteTransaction,
     balances, settlements, activityLogs, members,
     loadBalances, loadSettlements, loadActivity, loadMembers, loadAll,
   };
