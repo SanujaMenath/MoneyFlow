@@ -43,7 +43,9 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
           const parsed = JSON.parse(saved);
           const match = currencies.find((c) => c.code === parsed.code);
           if (match) setCurrencyState(match);
-        } catch {}
+        } catch {
+          // ignore parse errors for saved currency
+        }
       }
     });
   }, []);

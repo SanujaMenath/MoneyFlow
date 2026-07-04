@@ -1,4 +1,5 @@
 import { supabase } from "../../../lib/supabase";
+import { computeSplits } from "@moneyflow/shared/utils/splits";
 import type {
   SharedList, SharedListMember, Invitation, SharedTransaction,
   TransactionSplit, ActivityLog, CreateSharedListData,
@@ -12,11 +13,16 @@ async function requireUser(): Promise<string> {
   return user.id;
 }
 
-const profileCache = new Map<string, string>();
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const profileCache = new Map<string, { name: string; cachedAt: number }>();
 
 async function getDisplayNames(userIds: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  const uncached = userIds.filter((id) => !profileCache.has(id));
+  const now = Date.now();
+  const uncached = userIds.filter((id) => {
+    const entry = profileCache.get(id);
+    return !entry || (now - entry.cachedAt) > CACHE_TTL_MS;
+  });
   if (uncached.length > 0) {
     try {
       const { data } = await supabase
@@ -24,13 +30,18 @@ async function getDisplayNames(userIds: string[]): Promise<Map<string, string>> 
         .select("id, display_name, email")
         .in("id", uncached);
       (data || []).forEach((p: any) => {
-        profileCache.set(p.id, p.display_name || p.email || p.id.substring(0, 8));
+        profileCache.set(p.id, {
+          name: p.display_name || p.email || p.id.substring(0, 8),
+          cachedAt: now,
+        });
       });
-    } catch {
+    } catch (err) {
+      console.error("Failed to fetch profile names:", err);
     }
   }
   for (const id of userIds) {
-    map.set(id, profileCache.get(id) || id.substring(0, 8));
+    const entry = profileCache.get(id);
+    map.set(id, entry ? entry.name : id.substring(0, 8));
   }
   return map;
 }
@@ -446,13 +457,19 @@ export const getBalanceSummary = async (listId: string): Promise<BalanceSummary[
   const memberMap = new Map(members.map((m) => [m.user_id, m.display_name]));
   const splits: Record<string, { user_id: string; amount: number }[]> = {};
 
-  for (const tx of transactions) {
-    const { data } = await supabase
+  if (transactions.length > 0) {
+    const txIds = transactions.map((t) => t.id);
+    const { data: allSplits } = await supabase
       .from("shared_transaction_splits")
-      .select("user_id, amount")
-      .eq("transaction_id", tx.id);
+      .select("transaction_id, user_id, amount")
+      .in("transaction_id", txIds);
 
-    if (data) splits[tx.id] = data;
+    if (allSplits) {
+      for (const s of allSplits) {
+        if (!splits[s.transaction_id]) splits[s.transaction_id] = [];
+        splits[s.transaction_id].push({ user_id: s.user_id, amount: s.amount });
+      }
+    }
   }
 
   const paid: Record<string, number> = {};
@@ -544,35 +561,6 @@ export const getActivityLogs = async (listId: string): Promise<ActivityLog[]> =>
   }));
 };
 
-// ─── Helpers ──────────────────────────────────────────────────
-function computeSplits(
-  totalAmount: number,
-  method: "equal" | "custom" | "percentage",
-  splits: { user_id: string; amount?: number; percentage?: number }[]
-): { user_id: string; amount: number; percentage: number | null }[] {
-  if (method === "equal") {
-    const perPerson = Math.floor(totalAmount / splits.length);
-    const remainder = totalAmount - perPerson * splits.length;
-    return splits.map((s, i) => ({
-      user_id: s.user_id,
-      amount: perPerson + (i === 0 ? remainder : 0),
-      percentage: null,
-    }));
-  }
-
-  if (method === "percentage") {
-    return splits.map((s) => ({
-      user_id: s.user_id,
-      amount: Math.round(totalAmount * ((s.percentage || 0) / 100)),
-      percentage: s.percentage || null,
-    }));
-  }
-
-  return splits.map((s) => ({
-    user_id: s.user_id,
-    amount: s.amount || 0,
-    percentage: null,
-  }));
-}
+// computeSplits is imported from @moneyflow/shared/utils/splits
 
 

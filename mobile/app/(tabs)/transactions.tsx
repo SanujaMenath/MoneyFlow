@@ -74,7 +74,8 @@ export default function TransactionsScreen() {
       setTotal(result.total);
       setHasMore(p < result.totalPages);
       setPage(p);
-    } catch {
+    } catch (err) {
+      console.error("Failed to fetch transactions:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);

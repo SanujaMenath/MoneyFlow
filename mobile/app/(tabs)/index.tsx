@@ -34,7 +34,8 @@ export default function DashboardScreen() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       setTransactions((data || []).map(fromDB));
-    } catch {
+    } catch (err) {
+      console.error("Failed to fetch dashboard data:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);

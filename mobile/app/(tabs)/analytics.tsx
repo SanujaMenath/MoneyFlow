@@ -25,7 +25,8 @@ export default function AnalyticsScreen() {
         .order("date", { ascending: false });
       if (error) throw error;
       setTransactions((data || []).map(fromDB));
-    } catch {
+    } catch (err) {
+      console.error("Failed to fetch analytics data:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);

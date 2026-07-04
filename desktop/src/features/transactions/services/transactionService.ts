@@ -1,4 +1,6 @@
 import { supabase } from "../../../lib/supabase";
+import { getDB } from "../../../lib/db";
+import { enqueue } from "../../../lib/syncService";
 import type { Transaction, RecurringFrequency } from "../../../types/transaction";
 
 let _processing = false;
@@ -34,6 +36,19 @@ const addPeriod = (date: Date, frequency: RecurringFrequency): Date => {
   return result;
 };
 
+function mapRow(row: Record<string, unknown>): Transaction {
+  return {
+    id: row.id as number,
+    amount: row.amount as number,
+    type: row.type as "income" | "expense",
+    category: row.category as string,
+    date: row.date as string,
+    createdAt: row.created_at as string,
+    recurringFrequency: (row.recurring_frequency as RecurringFrequency) || "none",
+    recurringEndDate: (row.recurring_end_date as string) || null,
+  };
+}
+
 export interface PaginationResult {
   data: Transaction[];
   total: number;
@@ -43,19 +58,53 @@ export interface PaginationResult {
 }
 
 export const getTransactionCount = async (): Promise<number> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return 0;
-
-  const { count, error } = await supabase
-    .from("transactions")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id);
-
-  if (error) return 0;
-  return count || 0;
+  try {
+    const db = await getDB();
+    const [row] = await db.select<{ count: number }[]>(
+      "SELECT COUNT(*) as count FROM transactions WHERE is_deleted = 0",
+    );
+    return row?.count ?? 0;
+  } catch {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return 0;
+    const { count, error } = await supabase
+      .from("transactions")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    if (error) return 0;
+    return count || 0;
+  }
 };
 
 export const getTransactions = async (page = 1, pageSize = 50): Promise<PaginationResult> => {
+  try {
+    const db = await getDB();
+    const offset = (page - 1) * pageSize;
+
+    const [rows, [countRow]] = await Promise.all([
+      db.select<Record<string, unknown>[]>(
+        "SELECT * FROM transactions WHERE is_deleted = 0 ORDER BY date DESC, created_at DESC LIMIT $1 OFFSET $2",
+        [pageSize, offset],
+      ),
+      db.select<{ count: number }[]>(
+        "SELECT COUNT(*) as count FROM transactions WHERE is_deleted = 0",
+      ),
+    ]);
+
+    const total = countRow?.count ?? 0;
+    return {
+      data: rows.map(mapRow),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
+  } catch {
+    return getTransactionsFromCloud(page, pageSize);
+  }
+};
+
+async function getTransactionsFromCloud(page: number, pageSize: number): Promise<PaginationResult> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Authentication required.");
 
@@ -70,7 +119,10 @@ export const getTransactions = async (page = 1, pageSize = 50): Promise<Paginati
       .order("date", { ascending: false })
       .order("created_at", { ascending: false })
       .range(from, to),
-    getTransactionCount(),
+    supabase
+      .from("transactions")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id),
   ]);
 
   if (listResult.error) throw listResult.error;
@@ -88,59 +140,93 @@ export const getTransactions = async (page = 1, pageSize = 50): Promise<Paginati
 
   return {
     data,
-    total: countResult,
+    total: countResult.count || 0,
     page,
     pageSize,
-    totalPages: Math.max(1, Math.ceil(countResult / pageSize)),
+    totalPages: Math.max(1, Math.ceil((countResult.count || 0) / pageSize)),
   };
-};
+}
 
- 
-export const createTransaction = async (data: Transaction) => {
+export const createTransaction = async (data: Transaction): Promise<Transaction> => {
   const { data: { user } } = await supabase.auth.getUser();
-
   if (!user) throw new Error("Authentication required to save transactions.");
 
-  const { error } = await supabase.from("transactions").insert([
-    {
-      user_id: user.id,
-      amount: data.amount,
-      type: data.type,
-      category: data.category,
-      date: data.date,
-      created_at: data.createdAt || new Date().toISOString(),
-      recurring_frequency: data.recurringFrequency || "none",
-      recurring_end_date: data.recurringEndDate || null,
-    },
-  ]);
+  const now = new Date().toISOString();
+  const dbData = {
+    amount: data.amount,
+    type: data.type,
+    category: data.category,
+    date: data.date,
+    created_at: data.createdAt || now,
+    recurring_frequency: data.recurringFrequency || "none",
+    recurring_end_date: data.recurringEndDate || null,
+  };
 
-  if (error) throw error;
+  try {
+    const db = await getDB();
+    const result = await db.execute(
+      `INSERT INTO transactions (amount, type, category, date, created_at, recurring_frequency, recurring_end_date, synced_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [dbData.amount, dbData.type, dbData.category, dbData.date, dbData.created_at,
+       dbData.recurring_frequency, dbData.recurring_end_date, now],
+    );
+    const localId = result.lastInsertId;
 
-  if (data.recurringFrequency && data.recurringFrequency !== "none") {
-    await processRecurringTransactions();
+    await enqueue("create", localId, dbData);
+
+    return {
+      id: localId,
+      amount: dbData.amount,
+      type: dbData.type,
+      category: dbData.category,
+      date: dbData.date,
+      createdAt: dbData.created_at,
+      recurringFrequency: dbData.recurring_frequency,
+      recurringEndDate: dbData.recurring_end_date,
+    };
+  } catch {
+    const { data: created, error } = await supabase
+      .from("transactions")
+      .insert([{ ...dbData, user_id: user.id }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      id: created.id,
+      amount: created.amount,
+      type: created.type,
+      category: created.category,
+      date: created.date,
+      createdAt: created.created_at,
+      recurringFrequency: created.recurring_frequency || "none",
+      recurringEndDate: created.recurring_end_date || null,
+    };
   }
 };
 
-
 export const deleteTransaction = async (id: number) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Authentication required to delete transactions.");
-
-  const { error } = await supabase
-    .from("transactions")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
-
-  if (error) throw error;
+  try {
+    const db = await getDB();
+    await db.execute("UPDATE transactions SET is_deleted = 1, synced_at = $1 WHERE id = $2", [
+      new Date().toISOString(), id,
+    ]);
+    await enqueue("delete", id);
+  } catch {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Authentication required.");
+    const { error } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+    if (error) throw error;
+  }
 };
 
-
 export const updateTransaction = async (id: number, updates: Partial<Transaction>) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Authentication required to update transactions.");
-
-  const dbUpdates: any = {};
+  const dbUpdates: Record<string, unknown> = {};
   if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
   if (updates.type !== undefined) dbUpdates.type = updates.type;
   if (updates.category !== undefined) dbUpdates.category = updates.category;
@@ -148,13 +234,38 @@ export const updateTransaction = async (id: number, updates: Partial<Transaction
   if (updates.recurringFrequency !== undefined) dbUpdates.recurring_frequency = updates.recurringFrequency;
   if (updates.recurringEndDate !== undefined) dbUpdates.recurring_end_date = updates.recurringEndDate;
 
-  const { error } = await supabase
-    .from("transactions")
-    .update(dbUpdates)
-    .eq("id", id)
-    .eq("user_id", user.id);
+  try {
+    const db = await getDB();
+    const setClauses = Object.keys(dbUpdates).map((k, i) => `${k} = $${i + 1}`).join(", ");
+    const values = Object.values(dbUpdates);
+    values.push(new Date().toISOString(), id);
 
-  if (error) throw error;
+    await db.execute(
+      `UPDATE transactions SET ${setClauses}, synced_at = $${values.length - 1} WHERE id = $${values.length}`,
+      values,
+    );
+
+    await enqueue("update", id, dbUpdates);
+  } catch {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Authentication required.");
+
+    const supabaseUpdates: Record<string, unknown> = {};
+    if (updates.amount !== undefined) supabaseUpdates.amount = updates.amount;
+    if (updates.type !== undefined) supabaseUpdates.type = updates.type;
+    if (updates.category !== undefined) supabaseUpdates.category = updates.category;
+    if (updates.date !== undefined) supabaseUpdates.date = updates.date;
+    if (updates.recurringFrequency !== undefined) supabaseUpdates.recurring_frequency = updates.recurringFrequency;
+    if (updates.recurringEndDate !== undefined) supabaseUpdates.recurring_end_date = updates.recurringEndDate;
+
+    const { error } = await supabase
+      .from("transactions")
+      .update(supabaseUpdates)
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) throw error;
+  }
 };
 
 export const processRecurringTransactions = async (): Promise<number> => {

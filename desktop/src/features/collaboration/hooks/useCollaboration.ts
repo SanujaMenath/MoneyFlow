@@ -15,7 +15,8 @@ export const useCollaboration = () => {
     try {
       const data = await CollabService.getSharedLists();
       setLists(data);
-    } catch {
+    } catch (err) {
+      console.error("Failed to refresh shared lists:", err);
     }
   }, []);
 
@@ -23,7 +24,8 @@ export const useCollaboration = () => {
     try {
       const data = await CollabService.getInvitations();
       setInvitations(data);
-    } catch {
+    } catch (err) {
+      console.error("Failed to refresh invitations:", err);
     }
   }, []);
 
@@ -71,17 +73,6 @@ export const useCollaboration = () => {
     await refreshInvitations();
   }, [refreshInvitations]);
 
-  const removeMember = useCallback(async (listId: string, userId: string) => {
-    if (!window.confirm("Are you sure you want to remove this member?")) return;
-    await CollabService.removeMember(listId, userId);
-  }, []);
-
-  const transferOwnership = useCallback(async (listId: string, newOwnerId: string) => {
-    if (!window.confirm("Are you sure you want to transfer ownership? This cannot be undone.")) return;
-    await CollabService.transferOwnership(listId, newOwnerId);
-    await refreshLists();
-  }, [refreshLists]);
-
   const [transactions, setTransactions] = useState<SharedTransaction[]>([]);
   const [txLoading, setTxLoading] = useState(false);
 
@@ -90,27 +81,12 @@ export const useCollaboration = () => {
     try {
       const data = await CollabService.getSharedTransactions(listId);
       setTransactions(data);
-    } catch {
+    } catch (err) {
+      console.error("Failed to load transactions:", err);
     } finally {
       setTxLoading(false);
     }
   }, []);
-
-  const addTransaction = useCallback(async (data: Parameters<typeof CollabService.createSharedTransaction>[0]) => {
-    await CollabService.createSharedTransaction(data);
-    await loadTransactions(data.list_id);
-  }, [loadTransactions]);
-
-  const editTransaction = useCallback(async (id: string, updates: Partial<SharedTransaction>, listId: string) => {
-    await CollabService.updateSharedTransaction(id, updates);
-    await loadTransactions(listId);
-  }, [loadTransactions]);
-
-  const deleteTransaction = useCallback(async (id: string, listId: string) => {
-    if (!window.confirm("Are you sure you want to delete this transaction?")) return;
-    await CollabService.deleteSharedTransaction(id);
-    await loadTransactions(listId);
-  }, [loadTransactions]);
 
   const [balances, setBalances] = useState<BalanceSummary[]>([]);
   const [settlements, setSettlements] = useState<SettlementSuggestion[]>([]);
@@ -136,6 +112,34 @@ export const useCollaboration = () => {
     const data = await CollabService.getSharedListMembers(listId);
     setMembers(data);
   }, []);
+
+  const removeMember = useCallback(async (listId: string, userId: string) => {
+    if (!window.confirm("Are you sure you want to remove this member?")) return;
+    await CollabService.removeMember(listId, userId);
+    await Promise.all([refreshLists(), loadMembers(listId)]);
+  }, [refreshLists, loadMembers]);
+
+  const transferOwnership = useCallback(async (listId: string, newOwnerId: string) => {
+    if (!window.confirm("Are you sure you want to transfer ownership? This cannot be undone.")) return;
+    await CollabService.transferOwnership(listId, newOwnerId);
+    await refreshLists();
+  }, [refreshLists]);
+
+  const addTransaction = useCallback(async (data: Parameters<typeof CollabService.createSharedTransaction>[0]) => {
+    await CollabService.createSharedTransaction(data);
+    await loadTransactions(data.list_id);
+  }, [loadTransactions]);
+
+  const editTransaction = useCallback(async (id: string, updates: Partial<SharedTransaction>, listId: string) => {
+    await CollabService.updateSharedTransaction(id, updates);
+    await loadTransactions(listId);
+  }, [loadTransactions]);
+
+  const deleteTransaction = useCallback(async (id: string, listId: string) => {
+    if (!window.confirm("Are you sure you want to delete this transaction?")) return;
+    await CollabService.deleteSharedTransaction(id);
+    await loadTransactions(listId);
+  }, [loadTransactions]);
 
   const loadAll = useCallback(async (listId: string) => {
     await Promise.all([

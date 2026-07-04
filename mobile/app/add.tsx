@@ -34,6 +34,7 @@ export default function AddTransactionScreen() {
   const categories = type === "income" ? incomeCategories : expenseCategories;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCategory("");
     setCustomCategory("");
   }, [type]);

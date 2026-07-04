@@ -11,6 +11,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@moneyflow/shared": "*",
     "@supabase/supabase-js": "^2.103.0",
     "@tailwindcss/vite": "^4.2.2",
     "@tauri-apps/api": "^2",

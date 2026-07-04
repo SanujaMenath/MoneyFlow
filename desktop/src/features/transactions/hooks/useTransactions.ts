@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Transaction } from "../../../types/transaction";
 import { supabase } from "../../../lib/supabase"; 
+import { sync } from "../../../lib/syncService";
 import {
   getTransactions,
   deleteTransaction,
@@ -17,6 +18,8 @@ export const useTransactions = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const pageRef = useRef(page);
 
   const refresh = useCallback(async (p = 1) => {
     setLoading(true);
@@ -26,15 +29,37 @@ export const useTransactions = () => {
       setTotal(result.total);
       setTotalPages(result.totalPages);
       setPage(result.page);
-    } catch {
+    } catch (err) {
+      console.error("Failed to refresh transactions:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      sync();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
     const init = async () => {
       await processRecurringTransactions();
+      await sync();
       refresh(1);
     };
     init();
@@ -45,7 +70,7 @@ export const useTransactions = () => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'transactions' },
         () => {
-          refresh(page);
+          refresh(pageRef.current);
         }
       )
       .subscribe();
@@ -53,7 +78,7 @@ export const useTransactions = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [refresh, page]);
+  }, [refresh]);
 
   const goToPage = useCallback((p: number) => {
     if (p >= 1 && p <= totalPages) {
@@ -93,6 +118,7 @@ export const useTransactions = () => {
     page,
     totalPages,
     total,
+    isOnline,
     refresh,
     goToPage,
     remove,

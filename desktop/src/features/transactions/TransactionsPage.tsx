@@ -148,6 +148,7 @@ const TransactionsPage = ({
                   <input
                     type="date"
                     value={val}
+                    placeholder="YYYY-MM-DD"
                     onChange={(e) => setter(e.target.value)}
                     className="pl-8 pr-3 py-1.5 bg-card border border-border rounded-lg text-xs text-text-primary focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all w-36"
                   />
@@ -283,6 +284,7 @@ const TransactionsPage = ({
             <button
               onClick={() => onPageChange?.(page - 1)}
               disabled={page <= 1}
+              title="Previous Page"
               className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-bg rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ChevronLeft size={16} />
@@ -308,6 +310,7 @@ const TransactionsPage = ({
             <button
               onClick={() => onPageChange?.(page + 1)}
               disabled={page >= totalPages}
+              title="Next Page"
               className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-bg rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ChevronRight size={16} />

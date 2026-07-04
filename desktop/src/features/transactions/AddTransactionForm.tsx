@@ -64,8 +64,8 @@ const AddTransactionForm = ({ onClose, onSave }: AddTransactionFormProps) => {
 
     setSaving(true);
     try {
-      await createTransaction(transactionData);
-      onSave(transactionData);
+      const saved = await createTransaction(transactionData);
+      onSave(saved);
       setAmount("");
       setCategory("");
       setDate(today);

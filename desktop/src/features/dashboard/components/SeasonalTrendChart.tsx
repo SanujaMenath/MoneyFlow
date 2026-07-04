@@ -17,21 +17,27 @@ const SeasonalTrendChart = ({ transactions }: SeasonalTrendChartProps) => {
   const { format } = useCurrency();
 
   const chartData = useMemo(() => {
-    const monthlyData: Record<string, Record<string, number | string>> = {};
+    const monthlyData: Record<number, Record<string, number | string>> = {};
     const categories = new Set<string>();
 
     transactions
       .filter((t) => t.type === "expense")
       .forEach((t) => {
-        const month = new Date(t.date).toLocaleString("default", { month: "short" });
-        if (!monthlyData[month]) monthlyData[month] = { name: month };
-        monthlyData[month][t.category] =
-          ((monthlyData[month][t.category] as number) || 0) + t.amount;
+        const d = new Date(t.date);
+        const monthIdx = d.getMonth();
+        if (!monthlyData[monthIdx]) {
+          monthlyData[monthIdx] = {
+            name: d.toLocaleString("default", { month: "short" }),
+            _order: monthIdx,
+          };
+        }
+        monthlyData[monthIdx][t.category] =
+          ((monthlyData[monthIdx][t.category] as number) || 0) + t.amount;
         categories.add(t.category);
       });
 
     return {
-      data: Object.values(monthlyData),
+      data: Object.values(monthlyData).sort((a, b) => (a._order as number) - (b._order as number)),
       keys: Array.from(categories),
     };
   }, [transactions]);

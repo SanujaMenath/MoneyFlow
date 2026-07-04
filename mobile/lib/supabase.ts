@@ -1,17 +1,11 @@
 import "react-native-url-polyfill/auto";
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseClient } from "@moneyflow/shared/lib/supabase";
 import { storage } from "./storage";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    "Missing Supabase environment variables. Create a .env file based on .env.example."
-  );
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: storage as any,
     autoRefreshToken: true,
