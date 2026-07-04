@@ -30,6 +30,11 @@ export default tseslint.config(
       "**/build/**",
       "**/*.config.*",
       "**/.prettier*",
+      "**/.expo-export-*/**",
+      "**/e2e-report/**",
+      "**/test-results/**",
+      "**/.ts-debug/**",
+      "**/src-tauri/target/**",
     ],
   },
   {

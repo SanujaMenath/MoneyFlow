@@ -1,10 +1,21 @@
 import { useState, useCallback, useMemo, useRef } from "react";
 import {
-  View, Text, FlatList, ActivityIndicator, TouchableOpacity,
-  RefreshControl, StyleSheet, Alert, AlertButton, Platform,
+  View,
+  Text,
+  FlatList,
+  ActivityIndicator,
+  TouchableOpacity,
+  RefreshControl,
+  StyleSheet,
+  Alert,
+  AlertButton,
+  Platform,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
-import { processRecurringTransactions, getTransactionsPaginated } from "../../services/transactionService";
+import {
+  processRecurringTransactions,
+  getTransactionsPaginated,
+} from "../../services/transactionService";
 import type { Transaction } from "../../types/transaction";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -92,7 +103,11 @@ export default function TransactionsScreen() {
     fetchPage(1, true);
   }, [fetchPage]);
 
-  useFocusEffect(useCallback(() => { refreshData(); }, [refreshData]));
+  useFocusEffect(
+    useCallback(() => {
+      refreshData();
+    }, [refreshData]),
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -117,11 +132,15 @@ export default function TransactionsScreen() {
   }, [transactions, startDate, endDate]);
 
   const totalIncome = filtered.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
-  const totalExpense = filtered.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const totalExpense = filtered
+    .filter((t) => t.type === "expense")
+    .reduce((s, t) => s + t.amount, 0);
 
   const handlePreset = (key: "all" | "this" | "last") => {
-    if (key === "all") { setStartDate(""); setEndDate(""); }
-    else {
+    if (key === "all") {
+      setStartDate("");
+      setEndDate("");
+    } else {
       const range = getMonthRange(key === "this" ? 0 : -1);
       setStartDate(range.start);
       setEndDate(range.end);
@@ -131,8 +150,13 @@ export default function TransactionsScreen() {
   const isFiltered = startDate !== "" || endDate !== "";
 
   const handleDelete = async (id: number) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { Alert.alert(t("common.error"), t("transactions.mustBeSignedInDelete")); return; }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert(t("common.error"), t("transactions.mustBeSignedInDelete"));
+      return;
+    }
 
     const { error } = await supabase
       .from("transactions")
@@ -144,8 +168,13 @@ export default function TransactionsScreen() {
   };
 
   const handleStopRecurring = async (id: number) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { Alert.alert(t("common.error"), t("transactions.mustBeSignedIn")); return; }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert(t("common.error"), t("transactions.mustBeSignedIn"));
+      return;
+    }
 
     const { error } = await supabase
       .from("transactions")
@@ -162,7 +191,8 @@ export default function TransactionsScreen() {
     }
     const buttons: AlertButton[] = [
       {
-        text: t("common.delete"), style: "destructive",
+        text: t("common.delete"),
+        style: "destructive",
         onPress: () =>
           Alert.alert(t("common.delete"), t("transactions.areYouSure"), [
             { text: t("common.cancel") },
@@ -172,7 +202,8 @@ export default function TransactionsScreen() {
     ];
     if (item.recurringFrequency && item.recurringFrequency !== "none") {
       buttons.unshift({
-        text: t("transactions.stopRecurring"), style: "default",
+        text: t("transactions.stopRecurring"),
+        style: "default",
         onPress: () =>
           Alert.alert(t("transactions.stopRecurring"), t("transactions.stopRecurringDesc"), [
             { text: t("common.cancel") },
@@ -181,11 +212,19 @@ export default function TransactionsScreen() {
       });
     }
     buttons.push({ text: t("common.cancel"), style: "cancel" });
-    Alert.alert(t("transactions.transactionOptions"), `${item.category}: ${format(item.amount)}`, buttons);
+    Alert.alert(
+      t("transactions.transactionOptions"),
+      `${item.category}: ${format(item.amount)}`,
+      buttons,
+    );
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
   }
 
   return (
@@ -193,7 +232,9 @@ export default function TransactionsScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <Text style={styles.title}>{t("transactions.title")}</Text>
-        <Text style={styles.subtitle}>{filtered.length} {t("transactions.of")} {total} {t("transactions.records")}</Text>
+        <Text style={styles.subtitle}>
+          {filtered.length} {t("transactions.of")} {total} {t("transactions.records")}
+        </Text>
       </View>
 
       {/* Summary Strip */}
@@ -209,8 +250,14 @@ export default function TransactionsScreen() {
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>{t("transactions.saving")}</Text>
-            <Text style={[styles.summaryValue, { color: totalIncome - totalExpense >= 0 ? "#1e293b" : "#ef4444" }]}>
-              {totalIncome - totalExpense >= 0 ? "+" : "-"}{format(Math.abs(totalIncome - totalExpense))}
+            <Text
+              style={[
+                styles.summaryValue,
+                { color: totalIncome - totalExpense >= 0 ? "#1e293b" : "#ef4444" },
+              ]}
+            >
+              {totalIncome - totalExpense >= 0 ? "+" : "-"}
+              {format(Math.abs(totalIncome - totalExpense))}
             </Text>
           </View>
         </View>
@@ -220,11 +267,18 @@ export default function TransactionsScreen() {
       <View style={styles.filterRow}>
         <View style={styles.presetRow}>
           {PRESETS(t).map((p) => {
-            const active = p.key === "all" ? !isFiltered
-              : p.key === "this" ? startDate === getMonthRange(0).start
-              : startDate === getMonthRange(-1).start;
+            const active =
+              p.key === "all"
+                ? !isFiltered
+                : p.key === "this"
+                  ? startDate === getMonthRange(0).start
+                  : startDate === getMonthRange(-1).start;
             return (
-              <TouchableOpacity key={p.key} style={[styles.pill, active && styles.pillActive]} onPress={() => handlePreset(p.key)}>
+              <TouchableOpacity
+                key={p.key}
+                style={[styles.pill, active && styles.pillActive]}
+                onPress={() => handlePreset(p.key)}
+              >
                 <Text style={[styles.pillText, active && styles.pillTextActive]}>{p.label}</Text>
               </TouchableOpacity>
             );
@@ -240,26 +294,47 @@ export default function TransactionsScreen() {
             <Text style={styles.dateBtnText}>{endDate || t("transactions.to")}</Text>
           </TouchableOpacity>
           {isFiltered && (
-            <TouchableOpacity onPress={() => { setStartDate(""); setEndDate(""); }}>
+            <TouchableOpacity
+              onPress={() => {
+                setStartDate("");
+                setEndDate("");
+              }}
+            >
               <Ionicons name="close-circle" size={20} color="#ef4444" />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      <DatePicker value={startDate ? new Date(startDate) : new Date()} onChange={(d) => setStartDate(d.toISOString().split("T")[0])} show={showStartPicker} onClose={() => setShowStartPicker(false)} />
-      <DatePicker value={endDate ? new Date(endDate) : new Date()} onChange={(d) => setEndDate(d.toISOString().split("T")[0])} show={showEndPicker} onClose={() => setShowEndPicker(false)} />
+      <DatePicker
+        value={startDate ? new Date(startDate) : new Date()}
+        onChange={(d) => setStartDate(d.toISOString().split("T")[0])}
+        show={showStartPicker}
+        onClose={() => setShowStartPicker(false)}
+      />
+      <DatePicker
+        value={endDate ? new Date(endDate) : new Date()}
+        onChange={(d) => setEndDate(d.toISOString().split("T")[0])}
+        show={showEndPicker}
+        onClose={() => setShowEndPicker(false)}
+      />
 
       {/* List */}
       <FlatList
         data={filtered}
-        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 100) }}
         keyExtractor={(item) => String(item.id)}
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error - FlatListProps type is missing refreshControl in RN 0.81 types
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onLongPress={() => showActionMenu(item)} delayLongPress={500} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.card}
+            onLongPress={() => showActionMenu(item)}
+            delayLongPress={500}
+            activeOpacity={0.7}
+          >
             <View style={styles.cardLeft}>
               <Text style={styles.category}>{item.category}</Text>
               <View style={styles.cardMeta}>
@@ -272,24 +347,36 @@ export default function TransactionsScreen() {
                 )}
               </View>
             </View>
-            <Text style={[styles.amount, { color: item.type === "expense" ? "#ef4444" : "#10b981" }]}>
-              {item.type === "expense" ? "-" : "+"}{format(item.amount)}
+            <Text
+              style={[styles.amount, { color: item.type === "expense" ? "#ef4444" : "#10b981" }]}
+            >
+              {item.type === "expense" ? "-" : "+"}
+              {format(item.amount)}
             </Text>
           </TouchableOpacity>
         )}
         ListFooterComponent={
-          loadingMore ? (
-            <View style={styles.footerLoader}>
-              <ActivityIndicator size="small" color="#2563eb" />
-            </View>
-          ) : !hasMore && transactions.length > 0 ? (
-            <Text style={styles.footerText}>{t("transactions.allLoaded")}</Text>
-          ) : null
+          <View style={{ paddingBottom: Math.max(insets.bottom, 100) }}>
+            {loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color="#2563eb" />
+              </View>
+            ) : !hasMore && transactions.length > 0 ? (
+              <Text style={styles.footerText}>{t("transactions.allLoaded")}</Text>
+            ) : null}
+          </View>
         }
-        ListEmptyComponent={<Text style={styles.emptyText}>{isFiltered ? t("transactions.noTransactionsRange") : t("transactions.noTransactions")}</Text>}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>
+            {isFiltered ? t("transactions.noTransactionsRange") : t("transactions.noTransactions")}
+          </Text>
+        }
       />
 
-      <TouchableOpacity style={[styles.fab, { bottom: Math.max(insets.bottom, 80) }, fabShadow]} onPress={() => router.push("/add")}>
+      <TouchableOpacity
+        style={[styles.fab, { bottom: Math.max(insets.bottom, 80) }, fabShadow]}
+        onPress={() => router.push("/add")}
+      >
         <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>
     </View>
@@ -302,29 +389,102 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingBottom: 8 },
   title: { fontSize: 28, fontWeight: "800", color: "#1e293b" },
   subtitle: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
-  summaryRow: { flexDirection: "row", marginHorizontal: 20, marginVertical: 8, backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: "#e2e8f0", overflow: "hidden" },
-  summaryItem: { flex: 1, padding: 12, alignItems: "center", borderRightWidth: 1, borderRightColor: "#f1f5f9" },
-  summaryLabel: { fontSize: 10, fontWeight: "700", color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: 0.5 },
+  summaryRow: {
+    flexDirection: "row",
+    marginHorizontal: 20,
+    marginVertical: 8,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    overflow: "hidden",
+  },
+  summaryItem: {
+    flex: 1,
+    padding: 12,
+    alignItems: "center",
+    borderRightWidth: 1,
+    borderRightColor: "#f1f5f9",
+  },
+  summaryLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#94a3b8",
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.5,
+  },
   summaryValue: { fontSize: 13, fontWeight: "700", marginTop: 2 },
   filterRow: { paddingHorizontal: 20, paddingVertical: 8, gap: 8 },
   presetRow: { flexDirection: "row", gap: 6 },
-  pill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0" },
+  pill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
   pillActive: { backgroundColor: "#1e293b", borderColor: "#1e293b" },
   pillText: { fontSize: 11, fontWeight: "600", color: "#64748b" },
   pillTextActive: { color: "#fff" },
   dateInputRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  dateBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#fff", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: "#e2e8f0", flex: 1 },
+  dateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#fff",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    flex: 1,
+  },
   dateBtnText: { fontSize: 12, color: "#64748b", fontWeight: "500" },
-  card: { marginHorizontal: 20, marginVertical: 4, padding: 16, backgroundColor: "#fff", borderRadius: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#f1f5f9" },
+  card: {
+    marginHorizontal: 20,
+    marginVertical: 4,
+    padding: 16,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
   cardLeft: { flex: 1 },
   category: { fontSize: 15, fontWeight: "600", color: "#1e293b" },
   cardMeta: { flexDirection: "row", alignItems: "center", marginTop: 4 },
   date: { fontSize: 12, color: "#64748b" },
-  recurringBadge: { flexDirection: "row", alignItems: "center", backgroundColor: "#dbeafe", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 8 },
-  recurringText: { fontSize: 10, color: "#2563eb", fontWeight: "700", marginLeft: 3, textTransform: "uppercase" as const },
+  recurringBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#dbeafe",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  recurringText: {
+    fontSize: 10,
+    color: "#2563eb",
+    fontWeight: "700",
+    marginLeft: 3,
+    textTransform: "uppercase" as const,
+  },
   amount: { fontSize: 16, fontWeight: "700" },
   emptyText: { textAlign: "center", marginTop: 40, color: "#94a3b8", fontSize: 15 },
   footerLoader: { paddingVertical: 20, alignItems: "center" },
   footerText: { textAlign: "center", paddingVertical: 16, color: "#94a3b8", fontSize: 12 },
-  fab: { position: "absolute", right: 20, backgroundColor: "#2563eb", width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center" },
+  fab: {
+    position: "absolute",
+    right: 20,
+    backgroundColor: "#2563eb",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });

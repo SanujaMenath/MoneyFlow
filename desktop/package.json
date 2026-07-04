@@ -1,7 +1,7 @@
 {
   "name": "moneyflow",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,11 +17,19 @@
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-sql": "^2.3.2",
+    "i18next": "^26.3.4",
     "lucide-react": "^1.6.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-i18next": "^17.0.8",
     "recharts": "^3.8.1",
     "tailwindcss": "^4.2.2"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.0.0",
+    "@rollup/rollup-darwin-x64": "^4.0.0",
+    "@rollup/rollup-darwin-arm64": "^4.0.0",
+    "@rollup/rollup-win32-x64-msvc": "^4.0.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

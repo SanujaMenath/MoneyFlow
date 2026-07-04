@@ -10,6 +10,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+  EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+  EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+
 jobs:
   lint-and-typecheck:
     name: Lint & Typecheck
@@ -25,10 +31,9 @@ jobs:
         with:
           node-version: 22
           cache: "npm"
-          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
-        working-directory: ${{ matrix.project }}
+      - name: Install dependencies (root workspace)
         run: npm ci
 
       - name: TypeScript check
@@ -41,7 +46,7 @@ jobs:
         run: npm run build
 
   build-desktop:
-    name: Build Desktop
+    name: Build Desktop (${{ matrix.os }})
     needs: lint-and-typecheck
     runs-on: ${{ matrix.os }}
     strategy:
@@ -55,7 +60,7 @@ jobs:
         with:
           node-version: 22
           cache: "npm"
-          cache-dependency-path: desktop/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -66,16 +71,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Install dependencies
-        working-directory: desktop
+      - name: Install dependencies (root workspace)
         run: npm ci
 
       - name: Build Tauri
         working-directory: desktop
         run: npm run tauri build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -95,7 +96,7 @@ jobs:
         with:
           node-version: 22
           cache: "npm"
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -106,29 +107,40 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install dependencies
-        working-directory: mobile
+      - name: Install dependencies (root workspace)
         run: npm ci
-        env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: Prebuild Android project
         working-directory: mobile
         run: npx expo prebuild --platform android --no-install
-        env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: Build Android APK (arm64-v8a)
         working-directory: mobile/android
         run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
-        env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: mobile-android
           path: mobile/android/app/build/outputs/
+
+  build-mobile-web:
+    name: Build Mobile (Web export)
+    needs: lint-and-typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies (root workspace)
+        run: npm ci
+
+      - name: Export mobile web build
+        working-directory: mobile
+        run: npx expo export --platform web --output-dir .expo-export-web
