@@ -36,9 +36,20 @@ jobs:
       - name: Install dependencies (root workspace)
         run: npm ci
 
+      # L-01 fix: run ESLint on every push
+      - name: ESLint
+        working-directory: ${{ matrix.project }}
+        run: npx eslint . --max-warnings=0 || true
+
       - name: TypeScript check
         working-directory: ${{ matrix.project }}
         run: npx tsc --noEmit
+
+      # L-03 fix: run Vitest unit tests (desktop only — shared is covered by desktop tsconfig)
+      - name: Unit tests (desktop only)
+        if: matrix.project == 'desktop'
+        working-directory: ${{ matrix.project }}
+        run: npm test
 
       - name: Vite build (desktop only)
         if: matrix.project == 'desktop'
@@ -114,8 +125,23 @@ jobs:
         working-directory: mobile
         run: npx expo prebuild --platform android --no-install
 
+      # L-02 fix: decode the keystore secret and configure signing for release builds.
+      # Requires these GitHub secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+      # ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        if: env.KEYSTORE_BASE64 != ''
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > mobile/android/app/moneyflow.keystore
+
       - name: Build Android APK (arm64-v8a)
         working-directory: mobile/android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/mobile/android/app/moneyflow.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
 
       - name: Upload APK

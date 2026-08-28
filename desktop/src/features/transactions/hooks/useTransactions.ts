@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import type { Session } from "@supabase/supabase-js";
 import type { Transaction } from "../../../types/transaction";
-import { supabase } from "../../../lib/supabase"; 
+import { supabase } from "../../../lib/supabase";
 import { sync } from "../../../lib/syncService";
 import {
   getTransactions,
@@ -20,6 +21,8 @@ export const useTransactions = () => {
   const [total, setTotal] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const pageRef = useRef(page);
+  // H-06: cache the authenticated user id to scope the Realtime filter
+  const userIdRef = useRef<string | null>(null);
 
   const refresh = useCallback(async (p = 1) => {
     setLoading(true);
@@ -57,60 +60,86 @@ export const useTransactions = () => {
   }, []);
 
   useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
     const init = async () => {
       await processRecurringTransactions();
       await sync();
       refresh(1);
+
+      // H-06: resolve user id before creating the Realtime subscription so
+      // we can filter to only this user's rows, preventing spurious refreshes
+      // triggered by other users' changes.
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = (session as Session | null)?.user?.id ?? null;
+      userIdRef.current = userId;
+
+      const filterStr = userId ? `user_id=eq.${userId}` : undefined;
+
+      channel = supabase
+        .channel("schema-db-changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "transactions",
+            ...(filterStr ? { filter: filterStr } : {}),
+          },
+          () => {
+            refresh(pageRef.current);
+          },
+        )
+        .subscribe();
     };
+
     init();
 
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'transactions' },
-        () => {
-          refresh(pageRef.current);
-        }
-      )
-      .subscribe();
-
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [refresh]);
 
-  const goToPage = useCallback((p: number) => {
-    if (p >= 1 && p <= totalPages) {
-      refresh(p);
-    }
-  }, [refresh, totalPages]);
+  const goToPage = useCallback(
+    (p: number) => {
+      if (p >= 1 && p <= totalPages) {
+        refresh(p);
+      }
+    },
+    [refresh, totalPages],
+  );
 
-  const remove = useCallback(async (id: number) => {
-    const confirmed = window.confirm("Are you sure you want to delete this transaction?");
-    if (!confirmed) return;
+  const remove = useCallback(
+    async (id: number) => {
+      const confirmed = window.confirm("Are you sure you want to delete this transaction?");
+      if (!confirmed) return;
 
-    try {
-      await deleteTransaction(id);
-      refresh(page);
-    } catch (error) {
-      alert("Failed to delete transaction. Please try again.");
-    }
-  }, [refresh, page]);
+      try {
+        await deleteTransaction(id);
+        refresh(page);
+      } catch {
+        alert("Failed to delete transaction. Please try again.");
+      }
+    },
+    [refresh, page],
+  );
 
-  const stopRecurring = useCallback(async (id: number) => {
-    const confirmed = window.confirm(
-      "This will stop future occurrences of this transaction. Past records will remain. Continue?"
-    );
-    if (!confirmed) return;
+  const stopRecurring = useCallback(
+    async (id: number) => {
+      const confirmed = window.confirm(
+        "This will stop future occurrences of this transaction. Past records will remain. Continue?",
+      );
+      if (!confirmed) return;
 
-    try {
-      await updateTransaction(id, { recurringFrequency: "none"});
-      refresh(page);
-    } catch (error) {
-      alert("Failed to stop recurrence. Please try again.");
-    }
-  }, [refresh, page]);
+      try {
+        await updateTransaction(id, { recurringFrequency: "none" });
+        refresh(page);
+      } catch {
+        alert("Failed to stop recurrence. Please try again.");
+      }
+    },
+    [refresh, page],
+  );
 
   return {
     transactions,
@@ -122,6 +151,6 @@ export const useTransactions = () => {
     refresh,
     goToPage,
     remove,
-    stopRecurring, 
+    stopRecurring,
   };
 };

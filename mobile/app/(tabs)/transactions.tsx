@@ -15,7 +15,10 @@ import { supabase } from "../../lib/supabase";
 import {
   processRecurringTransactions,
   getTransactionsPaginated,
+  deleteTransaction,
+  updateTransaction,
 } from "../../services/transactionService";
+import { toLocalDate, formatDateString } from "@moneyflow/shared/utils/date";
 import type { Transaction } from "../../types/transaction";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -45,8 +48,9 @@ const getMonthRange = (offset: number) => {
   const start = new Date(year, month, 1);
   const end = new Date(year, month + 1, 0);
   return {
-    start: start.toISOString().split("T")[0],
-    end: end.toISOString().split("T")[0],
+    // M-07 fix: format as YYYY-MM-DD in local time (not UTC)
+    start: formatDateString(start),
+    end: formatDateString(end),
   };
 };
 
@@ -149,40 +153,26 @@ export default function TransactionsScreen() {
 
   const isFiltered = startDate !== "" || endDate !== "";
 
+  // H-05 fix: use the transactionService.deleteTransaction so the
+  // soft-delete + sync-queue path is followed consistently on both platforms.
   const handleDelete = async (id: number) => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      Alert.alert(t("common.error"), t("transactions.mustBeSignedInDelete"));
-      return;
+    try {
+      await deleteTransaction(id);
+      refreshData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t("common.error");
+      Alert.alert(t("common.error"), msg);
     }
-
-    const { error } = await supabase
-      .from("transactions")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
-    if (error) Alert.alert(t("common.error"), error.message);
-    else refreshData();
   };
 
   const handleStopRecurring = async (id: number) => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      Alert.alert(t("common.error"), t("transactions.mustBeSignedIn"));
-      return;
+    try {
+      await updateTransaction(id, { recurringFrequency: "none" });
+      refreshData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t("common.error");
+      Alert.alert(t("common.error"), msg);
     }
-
-    const { error } = await supabase
-      .from("transactions")
-      .update({ recurring_frequency: "none" })
-      .eq("id", id)
-      .eq("user_id", user.id);
-    if (error) Alert.alert(t("common.error"), error.message);
-    else refreshData();
   };
 
   const showActionMenu = (item: Transaction) => {
@@ -307,14 +297,14 @@ export default function TransactionsScreen() {
       </View>
 
       <DatePicker
-        value={startDate ? new Date(startDate) : new Date()}
-        onChange={(d) => setStartDate(d.toISOString().split("T")[0])}
+        value={startDate ? toLocalDate(startDate) : new Date()}
+        onChange={(d) => setStartDate(formatDateString(d))}
         show={showStartPicker}
         onClose={() => setShowStartPicker(false)}
       />
       <DatePicker
-        value={endDate ? new Date(endDate) : new Date()}
-        onChange={(d) => setEndDate(d.toISOString().split("T")[0])}
+        value={endDate ? toLocalDate(endDate) : new Date()}
+        onChange={(d) => setEndDate(formatDateString(d))}
         show={showEndPicker}
         onClose={() => setShowEndPicker(false)}
       />
