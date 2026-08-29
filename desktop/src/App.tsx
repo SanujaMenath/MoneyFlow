@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
+import type { Session } from "@supabase/supabase-js";
 import MainLayout from "./layout/MainLayout";
-import { supabase } from "./lib/supabase"; 
+import { supabase } from "./lib/supabase";
 import { Auth } from "./features/auth/components/Auth";
 import { useTransactions } from "./features/transactions/hooks/useTransactions";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -15,7 +16,7 @@ const AnalyticsPage = lazy(() => import("./features/analytics/AnalyticsPage"));
 const CollaborationPage = lazy(() => import("./features/collaboration/CollaborationPage"));
 
 function App() {
-  const [session, setSession] = useState<unknown>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [activeTab, setActiveTab] = useState<
     "Dashboard" | "Transactions" | "Analytics" | "Settings" | "Collaboration" | "Profile"
   >("Dashboard");

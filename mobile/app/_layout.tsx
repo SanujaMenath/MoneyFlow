@@ -17,13 +17,39 @@ function RootLayoutInner() {
   const colors = Colors[resolvedTheme];
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsInitializing(false);
-    });
+    const initSession = async () => {
+      try {
+        // Restore persisted session
+        const { data: { session: restored } } = await supabase.auth.getSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
+        if (restored) {
+          // H-07: Validate the JWT with the server so that an expired/revoked
+          // token does not silently pass the session guard.  getUser() makes a
+          // network round-trip to the Supabase Auth server; if the token is
+          // invalid it returns an error and we sign the user out immediately.
+          const { error } = await supabase.auth.getUser();
+          if (error) {
+            console.warn("Session validation failed, signing out:", error.message);
+            await supabase.auth.signOut();
+            setSession(null);
+          } else {
+            setSession(restored);
+          }
+        } else {
+          setSession(null);
+        }
+      } catch (err) {
+        console.error("Session init error:", err);
+        setSession(null);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
     });
 
     return () => {

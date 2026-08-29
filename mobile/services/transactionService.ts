@@ -1,31 +1,14 @@
 import { supabase } from "../lib/supabase";
 import type { Transaction, RecurringFrequency } from "../types/transaction";
 import { fromDB, toDB } from "../types/transaction";
+import { addPeriod, formatDateString, toLocalDate } from "@moneyflow/shared/utils/date";
 
+// Module-level guard: prevents concurrent recurring-processing runs
 let _processing = false;
 
-const toLocalDate = (s: string): Date => {
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d);
-};
-
-const formatDate = (d: Date): string => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-};
-
-const addPeriod = (date: Date, frequency: RecurringFrequency): Date => {
-  const result = new Date(date);
-  switch (frequency) {
-    case "daily": result.setDate(result.getDate() + 1); break;
-    case "weekly": result.setDate(result.getDate() + 7); break;
-    case "monthly": result.setMonth(result.getMonth() + 1); break;
-    case "yearly": result.setFullYear(result.getFullYear() + 1); break;
-  }
-  return result;
-};
+// ---------------------------------------------------------------------------
+// Pagination & read operations
+// ---------------------------------------------------------------------------
 
 export interface PaginationResult {
   data: Transaction[];
@@ -45,7 +28,7 @@ export const getTransactionCount = async (): Promise<number> => {
     .eq("user_id", user.id);
 
   if (error) return 0;
-  return count || 0;
+  return count ?? 0;
 };
 
 export const getTransactionsPaginated = async (page = 1, pageSize = 50): Promise<PaginationResult> => {
@@ -69,7 +52,7 @@ export const getTransactionsPaginated = async (page = 1, pageSize = 50): Promise
   if (listResult.error) throw listResult.error;
 
   return {
-    data: (listResult.data || []).map(fromDB),
+    data: (listResult.data ?? []).map(fromDB),
     total: countResult,
     page,
     pageSize,
@@ -89,8 +72,12 @@ export const getTransactions = async (): Promise<Transaction[]> => {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data || []).map(fromDB);
+  return (data ?? []).map(fromDB);
 };
+
+// ---------------------------------------------------------------------------
+// CRUD
+// ---------------------------------------------------------------------------
 
 export const createTransaction = async (data: Transaction) => {
   const { data: { user } } = await supabase.auth.getUser();
@@ -110,72 +97,102 @@ export const createTransaction = async (data: Transaction) => {
 export const deleteTransaction = async (id: number) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Authentication required.");
-  const { error } = await supabase.from("transactions").delete().eq("id", id).eq("user_id", user.id);
+  const { error } = await supabase
+    .from("transactions")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
   if (error) throw error;
 };
 
 export const updateTransaction = async (id: number, updates: Partial<Transaction>) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Authentication required.");
-  const dbUpdates: any = {};
+
+  // M-01 fix: typed db updates object (no `any`)
+  const dbUpdates: {
+    amount?: number;
+    type?: "income" | "expense";
+    category?: string;
+    date?: string;
+    description?: string | null;
+    recurring_frequency?: string;
+    recurring_end_date?: string | null;
+    updated_at: string;
+  } = { updated_at: new Date().toISOString() };
+
   if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
   if (updates.type !== undefined) dbUpdates.type = updates.type;
   if (updates.category !== undefined) dbUpdates.category = updates.category;
   if (updates.date !== undefined) dbUpdates.date = updates.date;
+  if (updates.description !== undefined) dbUpdates.description = updates.description;
   if (updates.recurringFrequency !== undefined) dbUpdates.recurring_frequency = updates.recurringFrequency;
   if (updates.recurringEndDate !== undefined) dbUpdates.recurring_end_date = updates.recurringEndDate;
 
-  const { error } = await supabase.from("transactions").update(dbUpdates).eq("id", id).eq("user_id", user.id);
+  const { error } = await supabase
+    .from("transactions")
+    .update(dbUpdates)
+    .eq("id", id)
+    .eq("user_id", user.id);
   if (error) throw error;
 };
+
+// ---------------------------------------------------------------------------
+// Recurring transaction generation
+// C-02 fix: deduplication now uses parent_transaction_id + date.
+// H-03 fix: uses shared addPeriod with clampToMonthEnd.
+// ---------------------------------------------------------------------------
 
 export const processRecurringTransactions = async (): Promise<number> => {
   if (_processing) return 0;
   _processing = true;
 
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return 0;
+
     const { data: templates, error: fetchError } = await supabase
       .from("transactions")
-      .select("id, user_id, amount, type, category, date, recurring_frequency, recurring_end_date")
-      .neq("recurring_frequency", "none");
+      .select("id, user_id, amount, type, category, date, description, recurring_frequency, recurring_end_date")
+      .eq("user_id", user.id)
+      .neq("recurring_frequency", "none")
+      .is("parent_transaction_id", null); // only original templates
 
     if (fetchError || !templates || templates.length === 0) return 0;
 
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     let created = 0;
 
     for (const template of templates) {
       const frequency = template.recurring_frequency as RecurringFrequency;
       const endDate = template.recurring_end_date ? toLocalDate(template.recurring_end_date) : null;
-      const startDate = toLocalDate(template.date);
+      const templateDate = toLocalDate(template.date);
 
       const candidateDates: string[] = [];
-      let current = addPeriod(startDate, frequency);
+      let current = addPeriod(templateDate, templateDate, frequency);
       let iterations = 0;
-      const MAX_ITERATIONS = 365;
+      const MAX_ITERATIONS = 730; // 2-year catch-up cap
 
       while (current <= today && iterations < MAX_ITERATIONS) {
         iterations++;
         if (endDate && current > endDate) break;
-        const dateStr = formatDate(current);
-        if (dateStr !== template.date) candidateDates.push(dateStr);
-        current = addPeriod(current, frequency);
+        candidateDates.push(formatDateString(current));
+        current = addPeriod(current, templateDate, frequency);
       }
 
       if (candidateDates.length === 0) continue;
 
+      // C-02 fix: deduplicate by parent_transaction_id instead of value-match
       const { data: existing } = await supabase
         .from("transactions")
         .select("date")
         .eq("user_id", template.user_id)
-        .eq("amount", template.amount)
-        .eq("type", template.type)
-        .eq("category", template.category)
-        .neq("id", template.id);
+        .eq("parent_transaction_id", template.id);
 
-      const existingDates = new Set((existing || []).map((r) => r.date));
+      const existingDates = new Set((existing ?? []).map((r) => r.date));
       const toCreate = candidateDates.filter((d) => !existingDates.has(d));
+
       if (toCreate.length === 0) continue;
 
       const { error: insertError } = await supabase.from("transactions").insert(
@@ -185,10 +202,13 @@ export const processRecurringTransactions = async (): Promise<number> => {
           type: template.type,
           category: template.category,
           date,
+          description: template.description ?? null,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           recurring_frequency: "none",
           recurring_end_date: null,
-        }))
+          parent_transaction_id: template.id, // C-02 fix: link to template
+        })),
       );
 
       if (!insertError) created += toCreate.length;
