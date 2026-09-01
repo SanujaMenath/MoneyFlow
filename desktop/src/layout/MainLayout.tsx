@@ -157,8 +157,8 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
           {/* Version */}
           <div className="mt-3 flex justify-center lg:justify-start lg:px-2">
             <span className="text-white/20 text-[9px] font-semibold tracking-widest">
-              <span className="hidden lg:inline">v1.2.0</span>
-              <span className="lg:hidden">v1.2.0</span>
+              <span className="hidden lg:inline">v1.5.0</span>
+              <span className="lg:hidden">v1.5.0</span>
             </span>
           </div>
         </div>
@@ -177,8 +177,8 @@ const MainLayout = ({ children, activeTab, setActiveTab }: MainLayoutProps) => {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            <span className="text-xs text-text-secondary bg-gray-100 px-3 py-1.5 rounded-lg font-medium">
-              {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+            <span className="text-xs text-text-secondary bg-bg border border-border px-3 py-1.5 rounded-lg font-medium">
+              {new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
             </span>
           </div>
         </header>

@@ -84,16 +84,16 @@ export const SharedTransactionsTable = ({
                 {tx.type === "income" ? "+" : "−"} {format(tx.amount)}
               </td>
               <td className="px-5 py-3.5 text-center">
-                <span className="inline-block bg-slate-100 text-slate-500 text-[10px] font-semibold px-2.5 py-0.5 rounded-full capitalize tracking-wide">
+                <span className="inline-block bg-bg border border-border text-text-secondary text-[10px] font-semibold px-2.5 py-0.5 rounded-full capitalize tracking-wide">
                   {tx.split_method}
                 </span>
               </td>
               <td className="px-5 py-3.5 text-center">
-                <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center justify-center gap-1 opacity-75 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   {canEdit(tx) && (
                     <button
                       onClick={() => onEdit(tx)}
-                      className="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+                      className="p-1.5 text-text-secondary hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
                       title="Edit"
                     >
                       <Edit3 size={14} />
@@ -102,7 +102,7 @@ export const SharedTransactionsTable = ({
                   {canEdit(tx) && (
                     <button
                       onClick={() => onDelete(tx.id)}
-                      className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                      className="p-1.5 text-text-secondary hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                       title="Delete"
                     >
                       <Trash2 size={14} />

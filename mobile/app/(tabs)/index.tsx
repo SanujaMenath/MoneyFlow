@@ -101,12 +101,12 @@ export default function DashboardScreen() {
             <View style={s.balanceRow}>
               <View style={s.balanceItem}>
                 <Text style={s.balanceItemLabel}>{t("dashboard.income")}</Text>
-                <Text style={[s.balanceItemValue, { color: colors.income }]}>{format(totalIncome)}</Text>
+                <Text style={[s.balanceItemValue, { color: "#86efac" }]}>+{format(totalIncome)}</Text>
               </View>
               <View style={s.balanceDivider} />
               <View style={s.balanceItem}>
                 <Text style={s.balanceItemLabel}>{t("dashboard.expenses")}</Text>
-                <Text style={[s.balanceItemValue, { color: colors.expense }]}>{format(totalExpenses)}</Text>
+                <Text style={[s.balanceItemValue, { color: "#fca5a5" }]}>-{format(totalExpenses)}</Text>
               </View>
             </View>
           </View>

@@ -239,7 +239,7 @@ const TransactionsPage = ({
 
                   <td className="px-5 py-3.5 text-center">
                     {t.recurringFrequency && t.recurringFrequency !== "none" ? (
-                      <span className="inline-block bg-slate-100 text-text-secondary text-[10px] font-semibold px-2.5 py-0.5 rounded-full capitalize tracking-wide">
+                      <span className="inline-block bg-bg border border-border text-text-secondary text-[10px] font-semibold px-2.5 py-0.5 rounded-full capitalize tracking-wide">
                         {t.recurringFrequency}
                       </span>
                     ) : (
@@ -248,7 +248,7 @@ const TransactionsPage = ({
                   </td>
 
                   <td className="px-5 py-3.5 text-center">
-                    <div className="flex items-center justify-center gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-center gap-1 opacity-75 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
                       {t.recurringFrequency && t.recurringFrequency !== "none" && (
                         <button
                           onClick={() => stopRecurring(t.id!)}

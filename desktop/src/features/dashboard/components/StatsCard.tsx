@@ -33,7 +33,7 @@ const StatsCard = ({ title, amount, type = "balance", icon: Icon }: StatsCardPro
             {title}
           </p>
           
-          <h3 className={`font-bold mt-1 lg:mt-3 truncate tracking-tight ${getTextColor()} text-base sm:text-sm lg:text-2xl`}>
+          <h3 className={`font-bold mt-1 lg:mt-3 truncate tracking-tight ${getTextColor()} text-base sm:text-xl lg:text-2xl`}>
             {getSign()}{format(amount)}
           </h3>
         </div>

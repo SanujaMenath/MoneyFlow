@@ -2,6 +2,7 @@ import React from "react";
 import { Platform, View, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useThemeColors } from "../context/useThemeColors";
 
 interface Props {
   value: Date;
@@ -12,6 +13,8 @@ interface Props {
 
 export default function DatePicker({ value, onChange, show, onClose }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+
   if (!show) return null;
 
   if (Platform.OS === "web") {
@@ -30,15 +33,17 @@ export default function DatePicker({ value, onChange, show, onClose }: Props) {
           style={{
             padding: "16px",
             fontSize: "16px",
-            border: "1px solid #e2e8f0",
+            border: `1px solid ${colors.inputBorder}`,
             borderRadius: "14px",
-            backgroundColor: "#f8fafc",
+            backgroundColor: colors.inputBg,
+            color: colors.text,
             width: "100%",
             boxSizing: "border-box",
+            outline: "none",
           }}
         />
         <TouchableOpacity style={styles.doneBtn} onPress={onClose}>
-          <Text style={styles.doneText}>{t("common.done")}</Text>
+          <Text style={[styles.doneText, { color: colors.primary }]}>{t("common.done")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -60,5 +65,5 @@ export default function DatePicker({ value, onChange, show, onClose }: Props) {
 const styles = StyleSheet.create({
   webContainer: { marginBottom: 12 },
   doneBtn: { alignItems: "center", paddingVertical: 10, marginTop: 4 },
-  doneText: { color: "#2563eb", fontWeight: "700", fontSize: 16 },
+  doneText: { fontWeight: "700", fontSize: 16 },
 });
