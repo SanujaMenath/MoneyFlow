@@ -74,12 +74,12 @@ export const SharedListsOverview = ({
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={(e) => { e.stopPropagation(); onDeleteList(list.id); }}
-                  className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                  className="p-2 text-text-secondary hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-75 sm:opacity-0 sm:group-hover:opacity-100"
                   title="Delete list"
                 >
                   <Trash2 size={15} />
                 </button>
-                <ChevronRight size={16} className="text-slate-300" />
+                <ChevronRight size={16} className="text-text-secondary" />
               </div>
             </div>
           ))}

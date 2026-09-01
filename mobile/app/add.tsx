@@ -14,6 +14,8 @@ import { useTheme } from "../context/ThemeContext";
 import DatePicker from "../components/DatePicker";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 
+import { formatDateString } from "@moneyflow/shared/utils/date";
+
 export default function AddTransactionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -73,15 +75,20 @@ export default function AddTransactionScreen() {
         amount: Math.round(numericAmount * 100),
         type,
         category: finalCategory,
-        date: date.toISOString().split("T")[0],
+        date: formatDateString(date),
         createdAt: new Date().toISOString(),
         recurringFrequency: frequency,
-        recurringEndDate: endDate ? endDate.toISOString().split("T")[0] : null,
+        recurringEndDate: endDate ? formatDateString(endDate) : null,
       });
 
-      Alert.alert(t("common.success"), t("add.recorded"), [
-        { text: t("common.ok"), onPress: () => router.back() },
-      ]);
+      if (Platform.OS === "web") {
+        window.alert(t("add.recorded"));
+        router.back();
+      } else {
+        Alert.alert(t("common.success"), t("add.recorded"), [
+          { text: t("common.ok"), onPress: () => router.back() },
+        ]);
+      }
     } catch (error: any) {
       Alert.alert(t("common.error"), error.message);
     } finally {

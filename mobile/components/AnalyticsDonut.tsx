@@ -1,8 +1,9 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import Svg, { Path, G } from "react-native-svg";
+import Svg, { Path, G, Circle } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import { useCurrency } from "../context/CurrencyContext";
+import { useThemeColors } from "../context/useThemeColors";
 
 interface Props {
   income: number;
@@ -24,6 +25,9 @@ function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
 export default function AnalyticsDonut({ income, expenses }: Props) {
   const { t } = useTranslation();
   const { format } = useCurrency();
+  const colors = useThemeColors();
+  const styles = makeStyles(colors);
+
   const total = income + expenses;
   const incomeRatio = total > 0 ? income / total : 0.5;
   const expenseRatio = total > 0 ? expenses / total : 0.5;
@@ -41,16 +45,16 @@ export default function AnalyticsDonut({ income, expenses }: Props) {
               {expenseAngle > 0 && (
                 <Path
                   d={describeArc(80, 80, 70, 0, expenseAngle)}
-                  fill="#ef4444"
+                  fill={colors.expense}
                 />
               )}
               {incomeAngle > 0 && (
                 <Path
                   d={describeArc(80, 80, 70, expenseAngle, expenseAngle + incomeAngle)}
-                  fill="#10b981"
+                  fill={colors.income}
                 />
               )}
-              <Path d={describeArc(80, 80, 45, 0, 360)} fill="#fff" />
+              <Circle cx="80" cy="80" r="45" fill={colors.card} />
             </G>
           </Svg>
           <View style={styles.centerLabel}>
@@ -61,12 +65,12 @@ export default function AnalyticsDonut({ income, expenses }: Props) {
 
         <View style={styles.legend}>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: "#10b981" }]} />
+            <View style={[styles.dot, { backgroundColor: colors.income }]} />
             <Text style={styles.legendLabel}>{t("components.income")}</Text>
             <Text style={styles.legendValue}>{format(income)}</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: "#ef4444" }]} />
+            <View style={[styles.dot, { backgroundColor: colors.expense }]} />
             <Text style={styles.legendLabel}>{t("components.expenses")}</Text>
             <Text style={styles.legendValue}>{format(expenses)}</Text>
           </View>
@@ -82,17 +86,18 @@ export default function AnalyticsDonut({ income, expenses }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { marginTop: 20 },
-  chartRow: { flexDirection: "row", alignItems: "center" },
-  svgContainer: { width: 160, height: 160, justifyContent: "center", alignItems: "center" },
-  centerLabel: { position: "absolute", alignItems: "center" },
-  savingsRateText: { fontSize: 24, fontWeight: "900", color: "#1e293b" },
-  savingsLabel: { fontSize: 11, color: "#64748b", fontWeight: "600", marginTop: -2 },
-  legend: { flex: 1, marginLeft: 16, gap: 12 },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 8 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
-  legendLabel: { fontSize: 13, color: "#64748b", fontWeight: "500", flex: 1 },
-  legendValue: { fontSize: 14, fontWeight: "700", color: "#1e293b" },
-  insight: { fontSize: 13, color: "#64748b", marginTop: 16, lineHeight: 18, fontStyle: "italic" },
-});
+const makeStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { marginTop: 20 },
+    chartRow: { flexDirection: "row", alignItems: "center" },
+    svgContainer: { width: 160, height: 160, justifyContent: "center", alignItems: "center" },
+    centerLabel: { position: "absolute", alignItems: "center" },
+    savingsRateText: { fontSize: 24, fontWeight: "900", color: colors.text },
+    savingsLabel: { fontSize: 11, color: colors.textMuted, fontWeight: "600", marginTop: -2 },
+    legend: { flex: 1, marginLeft: 16, gap: 12 },
+    legendItem: { flexDirection: "row", alignItems: "center", gap: 8 },
+    dot: { width: 10, height: 10, borderRadius: 5 },
+    legendLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: "500", flex: 1 },
+    legendValue: { fontSize: 14, fontWeight: "700", color: colors.text },
+    insight: { fontSize: 13, color: colors.textMuted, marginTop: 16, lineHeight: 18, fontStyle: "italic" },
+  });

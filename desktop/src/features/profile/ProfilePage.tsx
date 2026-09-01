@@ -349,7 +349,7 @@ const ProfilePage = () => {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={avatarUploading}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-text-primary px-3 py-1.5 rounded-lg transition-colors font-medium"
+                className="text-xs bg-bg border border-border hover:bg-card text-text-primary px-3 py-1.5 rounded-lg transition-colors font-medium"
               >
                 {avatarUploading ? "Uploading..." : "Change photo"}
               </button>
@@ -375,10 +375,10 @@ const ProfilePage = () => {
             <button
               key={sec}
               onClick={() => setActiveSection(sec)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors border ${
                 activeSection === sec
-                  ? "bg-primary text-white"
-                  : "bg-gray-100 text-text-secondary hover:bg-gray-200"
+                  ? "bg-primary text-white border-primary"
+                  : "bg-card text-text-secondary border-border hover:border-text-secondary hover:text-text-primary"
               }`}
             >
               <Icon size={14} />
@@ -676,7 +676,7 @@ const ProfilePage = () => {
                     </button>
                     <button
                       onClick={() => { setShowDeleteConfirm(false); setDeleteConfirm(""); }}
-                      className="bg-gray-200 text-text-primary px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-300 transition-colors"
+                      className="bg-bg border border-border text-text-secondary hover:text-text-primary hover:bg-card px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
                     >
                       Cancel
                     </button>

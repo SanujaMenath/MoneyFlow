@@ -39,20 +39,24 @@ const CategoryBarChart = ({ data }: { data: CategoryData[] }) => {
             type="category"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: "#6b7280", fontSize: 12, fontWeight: 500 }}
-            width={110}
+            tick={{ fill: "var(--color-text-secondary, #6b7280)", fontSize: 12, fontWeight: 500 }}
+            width={130}
           />
           <Tooltip
-            cursor={{ fill: "rgba(0,0,0,0.04)" }}
+            cursor={{ fill: "rgba(128, 128, 128, 0.08)" }}
             formatter={(value: ValueType | undefined) =>
               typeof value === "number" ? [format(value), "Amount"] : [String(value), "Amount"]
             }
             contentStyle={{
               borderRadius: "12px",
-              border: "none",
+              border: "1px solid var(--color-border, #E5E7EB)",
               boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+              backgroundColor: "var(--color-card, #ffffff)",
+              color: "var(--color-text-primary, #111827)",
               fontSize: "12px",
             }}
+            itemStyle={{ color: "var(--color-text-primary, #111827)" }}
+            labelStyle={{ color: "var(--color-text-primary, #111827)", fontWeight: 600 }}
           />
           <Bar dataKey="amount" radius={[0, 8, 8, 0]} barSize={22}>
             {data.map((_, index) => (

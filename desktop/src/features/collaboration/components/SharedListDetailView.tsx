@@ -158,15 +158,15 @@ export const SharedListDetailView = ({
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+      <div className="flex gap-1 bg-bg border border-border p-1 rounded-xl">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveDetailTab(tab.key)}
             className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
               activeDetailTab === tab.key
-                ? "bg-white text-slate-800 shadow-sm"
-                : "text-slate-400 hover:text-slate-600"
+                ? "bg-card text-text-primary shadow-sm"
+                : "text-text-secondary hover:text-text-primary"
             }`}
           >
             {tab.label}

@@ -54,34 +54,38 @@ const SeasonalTrendChart = ({ transactions }: SeasonalTrendChartProps) => {
     <div>
       <ResponsiveContainer width="100%" height={280}>
         <LineChart data={chartData.data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E5E7EB)" />
           <XAxis
             dataKey="name"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: "#9ca3af", fontSize: 12 }}
+            tick={{ fill: "var(--color-text-secondary, #9ca3af)", fontSize: 12 }}
             dy={8}
           />
           <YAxis
             axisLine={false}
             tickLine={false}
-            tick={{ fill: "#9ca3af", fontSize: 11 }}
+            tick={{ fill: "var(--color-text-secondary, #9ca3af)", fontSize: 11 }}
             width={72}
             tickFormatter={(value) => format(value)}
           />
           <Tooltip
             contentStyle={{
               borderRadius: "12px",
-              border: "none",
+              border: "1px solid var(--color-border, #E5E7EB)",
               boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+              backgroundColor: "var(--color-card, #ffffff)",
+              color: "var(--color-text-primary, #111827)",
               fontSize: "12px",
             }}
+            itemStyle={{ color: "var(--color-text-primary, #111827)" }}
+            labelStyle={{ color: "var(--color-text-primary, #111827)", fontWeight: 600 }}
             formatter={(value) => [typeof value === "number" ? format(value) : "", ""]}
           />
           <Legend
             iconType="circle"
             iconSize={8}
-            wrapperStyle={{ paddingTop: "16px", fontSize: "12px", color: "#6b7280" }}
+            wrapperStyle={{ paddingTop: "16px", fontSize: "12px", color: "var(--color-text-secondary, #6b7280)" }}
           />
           {chartData.keys.map((category, i) => (
             <Line

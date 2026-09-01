@@ -42,9 +42,12 @@ const AnalyticsDonut = ({ income, expenses }: AnalyticsDonutProps) => {
               formatter={(value: any) => format(value)}
               contentStyle={{
                 borderRadius: "12px",
-                border: "none",
+                border: "1px solid var(--color-border, #E5E7EB)",
                 boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                backgroundColor: "var(--color-card, #ffffff)",
+                color: "var(--color-text-primary, #111827)",
               }}
+              itemStyle={{ color: "var(--color-text-primary, #111827)" }}
             />
           </PieChart>
         </ResponsiveContainer>

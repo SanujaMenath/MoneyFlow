@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCurrency } from "../context/CurrencyContext";
+import { useThemeColors } from "../context/useThemeColors";
 
 const COLORS = ["#2563eb", "#7c3aed", "#db2777", "#d97706", "#10b981", "#ef4444"];
 
@@ -17,6 +18,8 @@ interface Props {
 export default function CategoryBarChart({ data }: Props) {
   const { t } = useTranslation();
   const { format } = useCurrency();
+  const colors = useThemeColors();
+  const styles = makeStyles(colors);
   const maxAmount = data.length > 0 ? Math.max(...data.map((d) => d.amount)) : 1;
 
   if (data.length === 0) {
@@ -50,13 +53,14 @@ export default function CategoryBarChart({ data }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { gap: 10 },
-  emptyContainer: { padding: 40, alignItems: "center" },
-  emptyText: { fontSize: 14, color: "#94a3b8", fontWeight: "500" },
-  row: { flexDirection: "row", alignItems: "center", gap: 8 },
-  label: { width: 100, fontSize: 12, fontWeight: "600", color: "#475569" },
-  barWrapper: { flex: 1, height: 20, backgroundColor: "#f1f5f9", borderRadius: 6, overflow: "hidden" },
-  bar: { height: 20, borderRadius: 6 },
-  value: { width: 80, fontSize: 11, fontWeight: "700", color: "#1e293b", textAlign: "right" as const },
-});
+const makeStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { gap: 10 },
+    emptyContainer: { padding: 40, alignItems: "center" },
+    emptyText: { fontSize: 14, color: colors.textMuted, fontWeight: "500" },
+    row: { flexDirection: "row", alignItems: "center", gap: 8 },
+    label: { width: 100, fontSize: 12, fontWeight: "600", color: colors.textSecondary },
+    barWrapper: { flex: 1, height: 20, backgroundColor: colors.surfaceAlt, borderRadius: 6, overflow: "hidden" },
+    bar: { height: 20, borderRadius: 6 },
+    value: { width: 80, fontSize: 11, fontWeight: "700", color: colors.text, textAlign: "right" as const },
+  });

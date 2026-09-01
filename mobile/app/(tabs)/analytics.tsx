@@ -7,6 +7,7 @@ import type { Transaction } from "../../types/transaction";
 import { useFocusEffect } from "expo-router";
 import { useCurrency } from "../../context/CurrencyContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "../../context/useThemeColors";
 import { processRecurringTransactions } from "../../services/transactionService";
 import CategoryBarChart from "../../components/CategoryBarChart";
 
@@ -14,6 +15,9 @@ export default function AnalyticsScreen() {
   const { t } = useTranslation();
   const { format } = useCurrency();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = makeStyles(colors, insets);
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -54,13 +58,17 @@ export default function AnalyticsScreen() {
   const biggestPct = totalSpend > 0 && topTwo.length > 0 ? Math.round((topTwo[0].amount / totalSpend) * 100) : 0;
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
   }
 
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={colors.primary} />}
     >
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <Text style={styles.title}>{t("analytics.title")}</Text>
@@ -95,7 +103,7 @@ export default function AnalyticsScreen() {
         )}
         <View style={[styles.insightRow, { borderBottomWidth: 0 }]}>
           <Text style={styles.insightLabel}>{t("analytics.totalTrackedSpend")}</Text>
-          <Text style={[styles.insightValue, { color: "#ef4444", fontSize: 18 }]}>{format(totalSpend)}</Text>
+          <Text style={[styles.insightValue, { color: colors.expense, fontSize: 18 }]}>{format(totalSpend)}</Text>
         </View>
       </View>
 
@@ -104,15 +112,16 @@ export default function AnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8fafc", paddingHorizontal: 20 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { marginBottom: 20 },
-  title: { fontSize: 28, fontWeight: "800", color: "#1e293b" },
-  card: { backgroundColor: "#fff", padding: 20, borderRadius: 20, marginTop: 16, borderWidth: 1, borderColor: "#e2e8f0" },
-  sectionTitle: { fontSize: 14, fontWeight: "700", color: "#64748b", marginBottom: 16, textTransform: "uppercase" as const, letterSpacing: 0.5 },
-  insightRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#f1f5f9", gap: 8 },
-  insightLabel: { fontSize: 13, color: "#64748b", fontWeight: "500", flex: 1 },
-  insightValue: { fontSize: 14, fontWeight: "700", color: "#1e293b" },
-  insightPct: { fontSize: 12, fontWeight: "600", color: "#2563eb", minWidth: 70, textAlign: "right" as const },
-});
+const makeStyles = (colors: any, insets: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 20 },
+    center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background },
+    header: { marginBottom: 20 },
+    title: { fontSize: 28, fontWeight: "800", color: colors.text },
+    card: { backgroundColor: colors.card, padding: 20, borderRadius: 20, marginTop: 16, borderWidth: 1, borderColor: colors.cardBorder },
+    sectionTitle: { fontSize: 14, fontWeight: "700", color: colors.textSecondary, marginBottom: 16, textTransform: "uppercase" as const, letterSpacing: 0.5 },
+    insightRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.borderLight, gap: 8 },
+    insightLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: "500", flex: 1 },
+    insightValue: { fontSize: 14, fontWeight: "700", color: colors.text },
+    insightPct: { fontSize: 12, fontWeight: "600", color: colors.primary, minWidth: 70, textAlign: "right" as const },
+  });
