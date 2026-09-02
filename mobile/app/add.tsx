@@ -7,12 +7,14 @@ import { createTransaction } from "../services/transactionService";
 import type { RecurringFrequency } from "../types/transaction";
 import { incomeCategories, expenseCategories, frequencies, categoryI18nKeys } from "../types/transaction";
 import { useTranslation } from "react-i18next";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColors } from "../context/useThemeColors";
 import { useTheme } from "../context/ThemeContext";
 import DatePicker from "../components/DatePicker";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 
 import { formatDateString } from "@moneyflow/shared/utils/date";
 
@@ -97,10 +99,47 @@ export default function AddTransactionScreen() {
   }
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
-      <Text style={[s.title, { paddingTop: insets.top + 20 }]}>{t("add.title")}</Text>
-
-      <View style={s.row}>
+    <>
+      <StatusBar style={resolvedTheme === "dark" ? "light" : "dark"} backgroundColor={colors.background} />
+      <Stack.Screen
+        options={{
+          title: t("add.title"),
+          headerShown: true,
+          headerTitleAlign: "center",
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerTitleStyle: {
+            color: colors.text,
+            fontWeight: "700",
+            fontSize: 18,
+          },
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={{ paddingRight: 8 }}
+            >
+              <Ionicons
+                name={Platform.OS === "ios" ? "chevron-back" : "arrow-back"}
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <ScrollView
+        style={s.container}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          paddingBottom: insets.bottom + 40,
+        }}
+      >
+        <View style={s.row}>
         <TouchableOpacity
           style={[s.typeBtn, type === "expense" && s.expenseActive]}
           onPress={() => setType("expense")}
@@ -194,13 +233,13 @@ export default function AddTransactionScreen() {
       <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={loading}>
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{t("add.save")}</Text>}
       </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+    </>
   );
 }
 
 const makeStyles = (colors: any) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: 20 },
-  title: { fontSize: 26, fontWeight: "900", color: colors.text, marginVertical: 20 },
+  container: { flex: 1, backgroundColor: colors.background },
   label: { fontSize: 14, fontWeight: "700", color: colors.textSecondary, marginBottom: 10, marginTop: 20, textTransform: "uppercase" as const, letterSpacing: 0.5 },
   input: { borderWidth: 1, borderColor: colors.inputBorder, padding: 16, borderRadius: 14, fontSize: 16, backgroundColor: colors.inputBg, color: colors.text },
   row: { flexDirection: "row", gap: 10, marginBottom: 10 },

@@ -73,9 +73,30 @@ function RootLayoutInner() {
     <CurrencyProvider>
       <SavingsGoalProvider>
         <StatusBar barStyle={resolvedTheme === "dark" ? "light-content" : "dark-content"} backgroundColor={colors.background} />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.background },
+            headerStyle: { backgroundColor: colors.background },
+            headerTintColor: colors.text,
+            headerTitleStyle: { color: colors.text, fontWeight: "700" },
+            headerShadowVisible: false,
+          }}
+        >
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="add" options={{ presentation: 'modal', headerShown: true, title: 'New Transaction' }} />
+          <Stack.Screen
+            name="add"
+            options={{
+              presentation: "modal",
+              headerShown: true,
+              title: "New Transaction",
+              headerTitleAlign: "center",
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { color: colors.text, fontWeight: "700", fontSize: 18 },
+              headerShadowVisible: false,
+            }}
+          />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
         </Stack>
