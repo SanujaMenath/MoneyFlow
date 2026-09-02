@@ -8,7 +8,7 @@
 
 Manage your finances on Windows, macOS, Linux, Android, and iOS — perfectly synced, totally secure.
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue?style=flat-square)](https://github.com/SanujaMenath/moneyflow/releases)
+[![Version](https://img.shields.io/badge/version-1.6.0-blue?style=flat-square)](https://github.com/SanujaMenath/moneyflow/releases)
 [![Status](https://img.shields.io/badge/status-release-green?style=flat-square)]()
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![CI](https://github.com/SanujaMenath/moneyflow/actions/workflows/ci.yml/badge.svg)](https://github.com/SanujaMenath/moneyflow/actions/workflows/ci.yml)
