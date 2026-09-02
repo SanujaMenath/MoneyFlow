@@ -18,9 +18,10 @@ env:
 
 jobs:
   lint-and-typecheck:
-    name: Lint & Typecheck
+    name: Lint & Typecheck (${{ matrix.project }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         project: [desktop, mobile]
     steps:
@@ -36,24 +37,23 @@ jobs:
       - name: Install dependencies (root workspace)
         run: npm ci
 
-      # L-01 fix: run ESLint on every push
       - name: ESLint
+        continue-on-error: true
         working-directory: ${{ matrix.project }}
-        run: npx eslint . --max-warnings=0 || true
+        run: npx --no-install eslint . --max-warnings=0
 
       - name: TypeScript check
         working-directory: ${{ matrix.project }}
-        run: npx tsc --noEmit
+        run: npx --no-install tsc --noEmit
 
-      # L-03 fix: run Vitest unit tests (desktop only — shared is covered by desktop tsconfig)
       - name: Unit tests (desktop only)
         if: matrix.project == 'desktop'
-        working-directory: ${{ matrix.project }}
+        working-directory: desktop
         run: npm test
 
       - name: Vite build (desktop only)
         if: matrix.project == 'desktop'
-        working-directory: ${{ matrix.project }}
+        working-directory: desktop
         run: npm run build
 
   build-desktop:
@@ -61,6 +61,7 @@ jobs:
     needs: lint-and-typecheck
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
@@ -123,16 +124,14 @@ jobs:
 
       - name: Prebuild Android project
         working-directory: mobile
-        run: npx expo prebuild --platform android --no-install
+        run: npx --no-install expo prebuild --platform android --no-install
 
-      # L-02 fix: decode the keystore secret and configure signing for release builds.
-      # Requires these GitHub secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
-      # ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         if: env.KEYSTORE_BASE64 != ''
         run: |
+          mkdir -p mobile/android/app
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > mobile/android/app/moneyflow.keystore
 
       - name: Build Android APK (arm64-v8a)
@@ -142,13 +141,15 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: mobile-android
-          path: mobile/android/app/build/outputs/
+          path: mobile/android/app/build/outputs/apk/
 
   build-mobile-web:
     name: Build Mobile (Web export)
@@ -169,4 +170,4 @@ jobs:
 
       - name: Export mobile web build
         working-directory: mobile
-        run: npx expo export --platform web --output-dir .expo-export-web
+        run: npx --no-install expo export --platform web --output-dir .expo-export-web
