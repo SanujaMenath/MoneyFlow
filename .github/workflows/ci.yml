@@ -10,12 +10,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-  EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-  EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-
 jobs:
   lint-and-typecheck:
     name: Lint & Typecheck (${{ matrix.project }})
@@ -54,6 +48,9 @@ jobs:
       - name: Vite build (desktop only)
         if: matrix.project == 'desktop'
         working-directory: desktop
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
         run: npm run build
 
   build-desktop:
@@ -84,10 +81,13 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install dependencies (root workspace)
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Build Tauri
         working-directory: desktop
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
         run: npm run tauri build
 
       - name: Upload artifacts
@@ -120,7 +120,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install dependencies (root workspace)
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Prebuild Android project
         working-directory: mobile
@@ -137,6 +137,8 @@ jobs:
       - name: Build Android APK (arm64-v8a)
         working-directory: mobile/android
         env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
           ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/mobile/android/app/moneyflow.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -166,8 +168,11 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies (root workspace)
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Export mobile web build
         working-directory: mobile
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
         run: npx --no-install expo export --platform web --output-dir .expo-export-web
