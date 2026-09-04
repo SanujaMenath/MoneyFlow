@@ -12,5 +12,9 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules"),
 ];
 config.resolver.disableHierarchicalLookup = true;
+config.server = {
+  ...config.server,
+  unstable_serverRoot: projectRoot,
+};
 
 module.exports = config;
