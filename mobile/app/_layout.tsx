@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
-import { View, ActivityIndicator, StatusBar } from 'react-native';
+import { View, StatusBar } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import { supabase } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import '../lib/i18n';
@@ -9,6 +10,8 @@ import { CurrencyProvider } from '../context/CurrencyContext';
 import { SavingsGoalProvider } from '../context/SavingsGoalContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import Colors from '../constants/Colors';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootLayoutInner() {
   const [session, setSession] = useState<Session | null>(null);
@@ -19,14 +22,9 @@ function RootLayoutInner() {
   useEffect(() => {
     const initSession = async () => {
       try {
-        // Restore persisted session
         const { data: { session: restored } } = await supabase.auth.getSession();
 
         if (restored) {
-          // H-07: Validate the JWT with the server so that an expired/revoked
-          // token does not silently pass the session guard.  getUser() makes a
-          // network round-trip to the Supabase Auth server; if the token is
-          // invalid it returns an error and we sign the user out immediately.
           const { error } = await supabase.auth.getUser();
           if (error) {
             console.warn("Session validation failed, signing out:", error.message);
@@ -43,6 +41,8 @@ function RootLayoutInner() {
         setSession(null);
       } finally {
         setIsInitializing(false);
+        // Dismiss the native splash screen cleanly
+        await SplashScreen.hideAsync().catch(() => {});
       }
     };
 
@@ -58,11 +58,7 @@ function RootLayoutInner() {
   }, []);
 
   if (isInitializing) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 
   if (!session) {
