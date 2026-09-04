@@ -29,7 +29,10 @@
     "@rollup/rollup-linux-x64-gnu": "^4.0.0",
     "@rollup/rollup-darwin-x64": "^4.0.0",
     "@rollup/rollup-darwin-arm64": "^4.0.0",
-    "@rollup/rollup-win32-x64-msvc": "^4.0.0"
+    "@rollup/rollup-win32-x64-msvc": "^4.0.0",
+    "@tailwindcss/oxide-linux-x64": "^4.0.0",
+    "@tailwindcss/oxide-darwin-arm64": "^4.0.0",
+    "@tailwindcss/oxide-win32-x64": "^4.0.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

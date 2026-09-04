@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies (root workspace)
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: ESLint
         continue-on-error: true
