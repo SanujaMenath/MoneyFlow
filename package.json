@@ -23,7 +23,7 @@
   
   "devDependencies": {
     "eslint": "^10.9.1",
-    "eslint-plugin-react": "^7.38.1",
+    "eslint-plugin-react": "^7.37.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "typescript-eslint": "^8.62.1",
     "prettier": "^3.5.0",
