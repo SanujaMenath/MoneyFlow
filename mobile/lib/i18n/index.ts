@@ -8,11 +8,11 @@ const STORAGE_KEY = "mf_language";
 
 function getSavedLanguage(): string {
   try {
-    if (typeof window !== "undefined" && window.localStorage) {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved === "en" || saved === "si") return saved;
-    }
-  } catch {}
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved === "en" || saved === "si") return saved;
+  } catch {
+    // Fallback to default language if localStorage is unavailable (e.g., in private browsing)
+  }
   return "en";
 }
 
@@ -35,10 +35,10 @@ i18n.use(initReactI18next).init({
 export function changeLanguage(lng: string) {
   i18n.changeLanguage(lng);
   try {
-    if (typeof window !== "undefined" && window.localStorage) {
-      window.localStorage.setItem(STORAGE_KEY, lng);
-    }
-  } catch {}
+    localStorage.setItem(STORAGE_KEY, lng);
+  } catch {
+    // Silently fail if localStorage is unavailable
+  }
 }
 
 export default i18n;
