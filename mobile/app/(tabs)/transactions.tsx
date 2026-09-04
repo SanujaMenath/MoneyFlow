@@ -340,7 +340,6 @@ export default function TransactionsScreen() {
         data={filtered}
         keyExtractor={(item) => String(item.id)}
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-expect-error - FlatListProps type is missing refreshControl in RN 0.81 types
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}

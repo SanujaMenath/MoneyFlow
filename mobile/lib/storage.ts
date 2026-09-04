@@ -1,5 +1,31 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
+
+const secureStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    try {
+      await SecureStore.setItemAsync(key, value, {
+        keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+      });
+    } catch (err) {
+      console.error("SecureStore write failure", err);
+    }
+  },
+  removeItem: async (key: string): Promise<void> => {
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch (err) {
+      console.error("SecureStore delete failure", err);
+    }
+  },
+};
 
 const webStorage = {
   getItem: async (key: string): Promise<string | null> => {
@@ -18,4 +44,4 @@ const webStorage = {
   },
 };
 
-export const storage = Platform.OS === "web" ? webStorage : AsyncStorage;
+export const storage = Platform.OS === "web" ? webStorage : secureStorage;
