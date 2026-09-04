@@ -10,7 +10,9 @@ function getSavedLanguage(): string {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === "en" || saved === "si") return saved;
-  } catch {}
+  } catch {
+    // Ignored
+  }
   return "en";
 }
 
@@ -34,7 +36,9 @@ export function changeLanguage(lng: string) {
   i18n.changeLanguage(lng);
   try {
     localStorage.setItem(STORAGE_KEY, lng);
-  } catch {}
+  } catch {
+    // Ignored
+  }
 }
 
 export default i18n;

@@ -132,7 +132,7 @@ jobs:
         if: env.KEYSTORE_BASE64 != ''
         run: |
           mkdir -p mobile/android/app
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > mobile/android/app/moneyflow.keystore
+          echo "$KEYSTORE_BASE64" | base64 --decode > mobile/android/app/moneyflow.keystore
 
       - name: Build Android APK (arm64-v8a)
         working-directory: mobile/android
