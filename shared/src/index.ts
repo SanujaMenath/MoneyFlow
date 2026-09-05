@@ -59,3 +59,6 @@ export {
 export { getDatePresets, formatDateString, toLocalDate } from "./utils/date";
 export { computeSplits } from "./utils/splits";
 export type { SplitInput, SplitResult } from "./utils/splits";
+export { exportTransactionsToCsv, parseTransactionsFromCsv } from "./utils/csv";
+
+export type { FinancialSummary } from "./types/summary";

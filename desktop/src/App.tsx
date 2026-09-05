@@ -55,7 +55,7 @@ function App() {
         <Suspense fallback={<div className="flex items-center justify-center h-48 text-text-secondary text-sm">Loading...</div>}>
           {activeTab === "Dashboard" && (
             <ErrorBoundary>
-              <DashboardView transactions={tx.transactions} />
+              <DashboardView transactions={tx.transactions} summary={tx.summary} />
             </ErrorBoundary>
           )}
 
@@ -64,6 +64,7 @@ function App() {
               <TransactionsPage
                 transactions={tx.transactions}
                 remove={tx.remove}
+                edit={tx.edit}
                 stopRecurring={tx.stopRecurring} 
                 loading={tx.loading}
                 page={tx.page}
@@ -71,6 +72,8 @@ function App() {
                 total={tx.total}
                 onPageChange={tx.goToPage}
                 onAddClick={handleAddTransaction}
+                filters={tx.filters}
+                onFilterChange={tx.setFilters}
               />
             </ErrorBoundary>
           )}

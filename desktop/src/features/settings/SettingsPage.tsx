@@ -1,4 +1,4 @@
-import { Check, Coins, User, Palette, Calendar, Target, LogOut, Sun, Moon, Monitor, Languages } from "lucide-react";
+import { Check, Coins, User, Palette, Calendar, Target, LogOut, Sun, Moon, Monitor, Languages, Database, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../../lib/supabase";
 import { CURRENCIES, useCurrency } from "../../context/CurrencyContext";
@@ -7,6 +7,8 @@ import { useTheme } from "../../context/ThemeContext";
 import { changeLanguage } from "../../lib/i18n";
 import { migrateLocalToCloud } from "./migrationService";
 import type { ThemeMode } from "../../context/ThemeContext";
+import { exportTransactionsToCsv } from "@moneyflow/shared";
+import { getAllTransactionsForExport } from "../transactions/services/transactionService";
 
 const themeOptions: { mode: ThemeMode; icon: React.ElementType; label: string }[] = [
   { mode: "light", icon: Sun, label: "Light" },
@@ -260,6 +262,59 @@ const SettingsPage = () => {
           <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400 bg-gray-100 px-2 py-1 rounded-md">
             Soon
           </span>
+        </div>
+      </section>
+
+      {/* Data Management & Export */}
+      <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+          <div className="p-2 bg-blue-50 rounded-lg">
+            <Download size={18} className="text-primary" />
+          </div>
+          <div>
+            <h3 className="font-bold text-text-primary text-sm sm:text-base">
+              Data Management & Backup
+            </h3>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Export and backup your financial data
+            </p>
+          </div>
+        </div>
+        <div className="p-6 flex flex-wrap gap-4">
+          <button
+            onClick={async () => {
+              try {
+                const allTx = await getAllTransactionsForExport();
+                if (allTx.length === 0) {
+                  alert("No transactions found to export.");
+                  return;
+                }
+                const csv = exportTransactionsToCsv(allTx);
+                const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", `moneyflow_all_transactions_${new Date().toISOString().split("T")[0]}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+              } catch {
+                alert("Failed to export transactions.");
+              }
+            }}
+            className="flex items-center gap-2 bg-navy text-white px-4 py-2.5 rounded-xl font-semibold text-xs hover:bg-slate-800 transition-all shadow-sm"
+          >
+            <Download size={15} />
+            Export All Transactions (CSV)
+          </button>
+          <button
+            onClick={migrateLocalToCloud}
+            className="flex items-center gap-2 border border-border hover:bg-bg text-text-primary px-4 py-2.5 rounded-xl font-semibold text-xs transition-all"
+          >
+            <Database size={15} className="text-text-secondary" />
+            Migrate Local SQLite to Cloud
+          </button>
         </div>
       </section>
 

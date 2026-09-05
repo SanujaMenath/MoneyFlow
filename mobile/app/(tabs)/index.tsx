@@ -10,8 +10,8 @@ import { useCurrency } from "../../context/CurrencyContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useThemeColors } from "../../context/useThemeColors";
 import { supabase } from "../../lib/supabase";
-import { getTransactions } from "../../services/transactionService";
-import type { Transaction } from "@moneyflow/shared";
+import { getFinancialSummary } from "../../services/transactionService";
+import type { FinancialSummary } from "@moneyflow/shared";
 import { Ionicons } from "@expo/vector-icons";
 import SavingsGoalCard from "../../components/SavingsGoalCard";
 import AnalyticsDonut from "../../components/AnalyticsDonut";
@@ -24,17 +24,17 @@ export default function DashboardScreen() {
   const { resolvedTheme } = useTheme();
   const colors = useThemeColors();
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [summary, setSummary] = useState<FinancialSummary>({ balance: 0, income: 0, expenses: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userName, setUserName] = useState("");
 
   const s = makeStyles(colors, insets);
 
-  const loadTransactions = useCallback(async () => {
+  const loadSummary = useCallback(async () => {
     try {
-      const data = await getTransactions();
-      setTransactions(data);
+      const data = await getFinancialSummary();
+      setSummary(data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -44,24 +44,20 @@ export default function DashboardScreen() {
   }, []);
 
   useEffect(() => {
-    loadTransactions();
+    loadSummary();
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user?.email) setUserName(user.email.split("@")[0]);
     });
-  }, [loadTransactions]);
+  }, [loadSummary]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadTransactions();
-  }, [loadTransactions]);
+    loadSummary();
+  }, [loadSummary]);
 
-  const totalIncome = transactions
-    .filter((tx) => tx.type === "income")
-    .reduce((sum, tx) => sum + tx.amount, 0);
-  const totalExpenses = transactions
-    .filter((tx) => tx.type === "expense")
-    .reduce((sum, tx) => sum + tx.amount, 0);
-  const balance = totalIncome - totalExpenses;
+  const totalIncome = summary.income;
+  const totalExpenses = summary.expenses;
+  const balance = summary.balance;
   const healthScore = totalIncome > 0
     ? Math.round((1 - totalExpenses / totalIncome) * 100)
     : 0;
@@ -124,7 +120,7 @@ export default function DashboardScreen() {
           </View>
 
           {/* Chart */}
-          {transactions.length > 0 && (
+          {(totalIncome > 0 || totalExpenses > 0) && (
             <View style={s.card}>
               <Text style={s.cardTitle}>{t("dashboard.incomeVsExpenses")}</Text>
               <AnalyticsDonut income={totalIncome} expenses={totalExpenses} />

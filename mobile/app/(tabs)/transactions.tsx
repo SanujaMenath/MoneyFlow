@@ -10,6 +10,8 @@ import {
   Alert,
   AlertButton,
   Platform,
+  Modal,
+  TextInput,
 } from "react-native";
 import {
   processRecurringTransactions,
@@ -76,13 +78,24 @@ export default function TransactionsScreen() {
   const [showEndPicker, setShowEndPicker] = useState(false);
   const recurringDone = useRef(false);
 
-  const fetchPage = useCallback(async (p: number, replace = false) => {
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const fetchPage = useCallback(async (p: number, replace = false, sDate?: string, eDate?: string) => {
     try {
       if (!recurringDone.current) {
         await processRecurringTransactions();
         recurringDone.current = true;
       }
-      const result = await getTransactionsPaginated(p, PAGE_SIZE);
+      const s = sDate !== undefined ? sDate : startDate;
+      const e = eDate !== undefined ? eDate : endDate;
+      const result = await getTransactionsPaginated(p, PAGE_SIZE, {
+        startDate: s || undefined,
+        endDate: e || undefined,
+      });
       if (replace) {
         setTransactions(result.data);
       } else {
@@ -102,7 +115,7 @@ export default function TransactionsScreen() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [startDate, endDate]);
 
   const refreshData = useCallback(() => {
     setLoading(true);
@@ -145,13 +158,52 @@ export default function TransactionsScreen() {
     .reduce((s, t) => s + t.amount, 0);
 
   const handlePreset = (key: "all" | "this" | "last") => {
-    if (key === "all") {
-      setStartDate("");
-      setEndDate("");
-    } else {
-      const range = getMonthRange(key === "this" ? 0 : -1);
-      setStartDate(range.start);
-      setEndDate(range.end);
+    let s = "";
+    let e = "";
+    if (key === "this") {
+      const range = getMonthRange(0);
+      s = range.start;
+      e = range.end;
+    } else if (key === "last") {
+      const range = getMonthRange(-1);
+      s = range.start;
+      e = range.end;
+    }
+    setStartDate(s);
+    setEndDate(e);
+    setLoading(true);
+    setPage(1);
+    fetchPage(1, true, s, e);
+  };
+
+  const handleStartEdit = (item: Transaction) => {
+    setEditingTx(item);
+    setEditAmount((item.amount / 100).toFixed(2));
+    setEditCategory(item.category);
+    setEditDescription(item.description || "");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingTx) return;
+    const num = parseFloat(editAmount);
+    if (isNaN(num) || num <= 0) {
+      Alert.alert(t("common.error"), t("add.invalidAmount"));
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await updateTransaction(editingTx.id!, {
+        amount: Math.round(num * 100),
+        category: editCategory,
+        description: editDescription.trim() || null,
+      });
+      setEditingTx(null);
+      refreshData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t("common.error");
+      Alert.alert(t("common.error"), msg);
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -193,7 +245,7 @@ export default function TransactionsScreen() {
     }
     if (Platform.OS === "web") {
       const action = window.prompt(
-        `${item.category}: ${format(item.amount)}\nType "delete" to delete${
+        `${item.category}: ${format(item.amount)}\nType "edit" to edit, "delete" to delete${
           item.recurringFrequency && item.recurringFrequency !== "none" ? ', or "stop" to stop recurrence' : ""
         }:`,
         ""
@@ -202,10 +254,17 @@ export default function TransactionsScreen() {
         handleDelete(item.id!);
       } else if (action?.toLowerCase() === "stop" && item.recurringFrequency && item.recurringFrequency !== "none") {
         handleStopRecurring(item.id!);
+      } else if (action?.toLowerCase() === "edit") {
+        handleStartEdit(item);
       }
       return;
     }
     const buttons: AlertButton[] = [
+      {
+        text: t("common.edit", "Edit"),
+        style: "default",
+        onPress: () => handleStartEdit(item),
+      },
       {
         text: t("common.delete"),
         style: "destructive",
@@ -217,7 +276,7 @@ export default function TransactionsScreen() {
       },
     ];
     if (item.recurringFrequency && item.recurringFrequency !== "none") {
-      buttons.unshift({
+      buttons.splice(1, 0, {
         text: t("transactions.stopRecurring"),
         style: "default",
         onPress: () =>
@@ -398,6 +457,74 @@ export default function TransactionsScreen() {
       >
         <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>
+
+      {/* Edit Transaction Modal */}
+      <Modal
+        visible={editingTx !== null}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setEditingTx(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t("transactions.editTransaction", "Edit Transaction")}</Text>
+              <TouchableOpacity onPress={() => setEditingTx(null)}>
+                <Ionicons name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.inputLabel}>{t("add.amount", "Amount")}</Text>
+            <TextInput
+              style={styles.modalInput}
+              keyboardType="decimal-pad"
+              value={editAmount}
+              onChangeText={setEditAmount}
+              placeholder="0.00"
+              placeholderTextColor={colors.textMuted}
+            />
+
+            <Text style={styles.inputLabel}>{t("add.category", "Category")}</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editCategory}
+              onChangeText={setEditCategory}
+              placeholder={t("add.category", "Category")}
+              placeholderTextColor={colors.textMuted}
+            />
+
+            <Text style={styles.inputLabel}>{t("add.description", "Description")}</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editDescription}
+              onChangeText={setEditDescription}
+              placeholder={t("add.descriptionPlaceholder", "Optional note")}
+              placeholderTextColor={colors.textMuted}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.cancelBtn]}
+                onPress={() => setEditingTx(null)}
+                disabled={savingEdit}
+              >
+                <Text style={styles.cancelBtnText}>{t("common.cancel", "Cancel")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.saveBtn]}
+                onPress={handleSaveEdit}
+                disabled={savingEdit}
+              >
+                {savingEdit ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveBtnText}>{t("common.save", "Save")}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -508,5 +635,78 @@ const makeStyles = (colors: any, insets: any) =>
       borderRadius: 30,
       justifyContent: "center",
       alignItems: "center",
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      justifyContent: "flex-end",
+    },
+    modalContent: {
+      backgroundColor: colors.card,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: Math.max(insets.bottom + 16, 32),
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 20,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    inputLabel: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.textSecondary,
+      marginBottom: 6,
+      textTransform: "uppercase" as const,
+      letterSpacing: 0.5,
+    },
+    modalInput: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 12,
+      padding: 14,
+      fontSize: 15,
+      color: colors.text,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 16,
+    },
+    modalButtons: {
+      flexDirection: "row",
+      gap: 12,
+      marginTop: 8,
+    },
+    modalBtn: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    cancelBtn: {
+      backgroundColor: colors.surfaceAlt,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    cancelBtnText: {
+      color: colors.textSecondary,
+      fontWeight: "600",
+      fontSize: 15,
+    },
+    saveBtn: {
+      backgroundColor: colors.primary,
+    },
+    saveBtnText: {
+      color: "#fff",
+      fontWeight: "600",
+      fontSize: 15,
     },
   });

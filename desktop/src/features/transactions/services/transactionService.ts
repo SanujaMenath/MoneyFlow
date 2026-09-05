@@ -2,7 +2,10 @@ import { supabase } from "../../../lib/supabase";
 import { getDB } from "../../../lib/db";
 import { enqueue } from "../../../lib/syncService";
 import type { Transaction, RecurringFrequency } from "../../../types/transaction";
+import type { FinancialSummary } from "@moneyflow/shared";
 import { addPeriod, formatDateString, toLocalDate } from "@moneyflow/shared/utils/date";
+
+export type { FinancialSummary };
 
 // Module-level guard: prevents concurrent recurring-processing runs
 let _processing = false;
@@ -43,8 +46,16 @@ function mapRow(row: TransactionRow): Transaction {
 }
 
 // ---------------------------------------------------------------------------
-// Pagination
+// Filters & Pagination
 // ---------------------------------------------------------------------------
+
+export interface TransactionFilters {
+  startDate?: string;
+  endDate?: string;
+  category?: string;
+  type?: "income" | "expense";
+  search?: string;
+}
 
 export interface PaginationResult {
   data: Transaction[];
@@ -54,37 +65,106 @@ export interface PaginationResult {
   totalPages: number;
 }
 
-export const getTransactionCount = async (): Promise<number> => {
+export const getTransactionCount = async (filters?: TransactionFilters): Promise<number> => {
   try {
     const db = await getDB();
+    const whereClauses = ["is_deleted = 0"];
+    const params: (string | number)[] = [];
+
+    if (filters?.startDate) {
+      params.push(filters.startDate);
+      whereClauses.push(`date >= $${params.length}`);
+    }
+    if (filters?.endDate) {
+      params.push(filters.endDate);
+      whereClauses.push(`date <= $${params.length}`);
+    }
+    if (filters?.category) {
+      params.push(filters.category);
+      whereClauses.push(`category = $${params.length}`);
+    }
+    if (filters?.type) {
+      params.push(filters.type);
+      whereClauses.push(`type = $${params.length}`);
+    }
+    if (filters?.search) {
+      params.push(`%${filters.search.toLowerCase()}%`);
+      whereClauses.push(`(LOWER(category) LIKE $${params.length} OR LOWER(COALESCE(description, '')) LIKE $${params.length})`);
+    }
+
+    const whereSql = whereClauses.join(" AND ");
     const [row] = await db.select<{ count: number }[]>(
-      "SELECT COUNT(*) as count FROM transactions WHERE is_deleted = 0",
+      `SELECT COUNT(*) as count FROM transactions WHERE ${whereSql}`,
+      params,
     );
     return row?.count ?? 0;
   } catch {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) return 0;
-    const { count, error } = await supabase
+
+    let query = supabase
       .from("transactions")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id);
+
+    if (filters?.startDate) query = query.gte("date", filters.startDate);
+    if (filters?.endDate) query = query.lte("date", filters.endDate);
+    if (filters?.category) query = query.eq("category", filters.category);
+    if (filters?.type) query = query.eq("type", filters.type);
+    if (filters?.search) query = query.ilike("description", `%${filters.search}%`);
+
+    const { count, error } = await query;
     if (error) return 0;
     return count ?? 0;
   }
 };
 
-export const getTransactions = async (page = 1, pageSize = 50): Promise<PaginationResult> => {
+export const getTransactions = async (
+  page = 1,
+  pageSize = 50,
+  filters?: TransactionFilters,
+): Promise<PaginationResult> => {
   try {
     const db = await getDB();
+    const whereClauses = ["is_deleted = 0"];
+    const params: (string | number)[] = [];
+
+    if (filters?.startDate) {
+      params.push(filters.startDate);
+      whereClauses.push(`date >= $${params.length}`);
+    }
+    if (filters?.endDate) {
+      params.push(filters.endDate);
+      whereClauses.push(`date <= $${params.length}`);
+    }
+    if (filters?.category) {
+      params.push(filters.category);
+      whereClauses.push(`category = $${params.length}`);
+    }
+    if (filters?.type) {
+      params.push(filters.type);
+      whereClauses.push(`type = $${params.length}`);
+    }
+    if (filters?.search) {
+      params.push(`%${filters.search.toLowerCase()}%`);
+      whereClauses.push(`(LOWER(category) LIKE $${params.length} OR LOWER(COALESCE(description, '')) LIKE $${params.length})`);
+    }
+
+    const whereSql = whereClauses.join(" AND ");
     const offset = (page - 1) * pageSize;
+
+    const countParams = [...params];
+    params.push(pageSize, offset);
 
     const [rows, [countRow]] = await Promise.all([
       db.select<TransactionRow[]>(
-        "SELECT * FROM transactions WHERE is_deleted = 0 ORDER BY date DESC, created_at DESC LIMIT $1 OFFSET $2",
-        [pageSize, offset],
+        `SELECT * FROM transactions WHERE ${whereSql} ORDER BY date DESC, created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+        params,
       ),
       db.select<{ count: number }[]>(
-        "SELECT COUNT(*) as count FROM transactions WHERE is_deleted = 0",
+        `SELECT COUNT(*) as count FROM transactions WHERE ${whereSql}`,
+        countParams,
       ),
     ]);
 
@@ -97,29 +177,52 @@ export const getTransactions = async (page = 1, pageSize = 50): Promise<Paginati
       totalPages: Math.max(1, Math.ceil(total / pageSize)),
     };
   } catch {
-    return getTransactionsFromCloud(page, pageSize);
+    return getTransactionsFromCloud(page, pageSize, filters);
   }
 };
 
-async function getTransactionsFromCloud(page: number, pageSize: number): Promise<PaginationResult> {
-  const { data: { user } } = await supabase.auth.getUser();
+async function getTransactionsFromCloud(
+  page: number,
+  pageSize: number,
+  filters?: TransactionFilters,
+): Promise<PaginationResult> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) throw new Error("Authentication required.");
 
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
+  let query = supabase.from("transactions").select("*").eq("user_id", user.id);
+  let countQuery = supabase.from("transactions").select("*", { count: "exact", head: true }).eq("user_id", user.id);
+
+  if (filters?.startDate) {
+    query = query.gte("date", filters.startDate);
+    countQuery = countQuery.gte("date", filters.startDate);
+  }
+  if (filters?.endDate) {
+    query = query.lte("date", filters.endDate);
+    countQuery = countQuery.lte("date", filters.endDate);
+  }
+  if (filters?.category) {
+    query = query.eq("category", filters.category);
+    countQuery = countQuery.eq("category", filters.category);
+  }
+  if (filters?.type) {
+    query = query.eq("type", filters.type);
+    countQuery = countQuery.eq("type", filters.type);
+  }
+  if (filters?.search) {
+    query = query.ilike("description", `%${filters.search}%`);
+    countQuery = countQuery.ilike("description", `%${filters.search}%`);
+  }
+
   const [listResult, countResult] = await Promise.all([
-    supabase
-      .from("transactions")
-      .select("*")
-      .eq("user_id", user.id)
+    query
       .order("date", { ascending: false })
       .order("created_at", { ascending: false })
       .range(from, to),
-    supabase
-      .from("transactions")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id),
+    countQuery,
   ]);
 
   if (listResult.error) throw listResult.error;
@@ -148,11 +251,139 @@ async function getTransactionsFromCloud(page: number, pageSize: number): Promise
 }
 
 // ---------------------------------------------------------------------------
-// CRUD
+// Aggregated Financial Summary (Decoupled from 50-row pagination)
+// ---------------------------------------------------------------------------
+
+export const getFinancialSummary = async (
+  startDate?: string,
+  endDate?: string,
+): Promise<FinancialSummary> => {
+  try {
+    const db = await getDB();
+    const whereClauses = ["is_deleted = 0"];
+    const params: (string | number)[] = [];
+
+    if (startDate) {
+      params.push(startDate);
+      whereClauses.push(`date >= $${params.length}`);
+    }
+    if (endDate) {
+      params.push(endDate);
+      whereClauses.push(`date <= $${params.length}`);
+    }
+
+    const whereSql = whereClauses.join(" AND ");
+    const rows = await db.select<{ type: string; total: number }[]>(
+      `SELECT type, SUM(amount) as total FROM transactions WHERE ${whereSql} GROUP BY type`,
+      params,
+    );
+
+    let income = 0;
+    let expenses = 0;
+    for (const r of rows) {
+      if (r.type === "income") income = r.total;
+      else if (r.type === "expense") expenses = r.total;
+    }
+
+    return {
+      income,
+      expenses,
+      balance: income - expenses,
+    };
+  } catch {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) return { balance: 0, income: 0, expenses: 0 };
+
+      const { data, error } = await supabase.rpc("get_financial_summary", {
+        p_start_date: startDate || null,
+        p_end_date: endDate || null,
+      });
+
+      if (!error && data) {
+        const income = Number(data.income ?? 0);
+        const expenses = Number(data.expenses ?? 0);
+        const balance = Number(data.balance ?? (income - expenses));
+        return { balance, income, expenses };
+      }
+    } catch {
+      // Fallback
+    }
+    return { balance: 0, income: 0, expenses: 0 };
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Export All Transactions for CSV
+// ---------------------------------------------------------------------------
+
+export const getAllTransactionsForExport = async (filters?: TransactionFilters): Promise<Transaction[]> => {
+  try {
+    const db = await getDB();
+    const whereClauses = ["is_deleted = 0"];
+    const params: (string | number)[] = [];
+
+    if (filters?.startDate) {
+      params.push(filters.startDate);
+      whereClauses.push(`date >= $${params.length}`);
+    }
+    if (filters?.endDate) {
+      params.push(filters.endDate);
+      whereClauses.push(`date <= $${params.length}`);
+    }
+    if (filters?.category) {
+      params.push(filters.category);
+      whereClauses.push(`category = $${params.length}`);
+    }
+    if (filters?.type) {
+      params.push(filters.type);
+      whereClauses.push(`type = $${params.length}`);
+    }
+
+    const whereSql = whereClauses.join(" AND ");
+    const rows = await db.select<TransactionRow[]>(
+      `SELECT * FROM transactions WHERE ${whereSql} ORDER BY date DESC, created_at DESC`,
+      params,
+    );
+    return rows.map(mapRow);
+  } catch {
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user) return [];
+
+    let query = supabase.from("transactions").select("*").eq("user_id", user.id);
+    if (filters?.startDate) query = query.gte("date", filters.startDate);
+    if (filters?.endDate) query = query.lte("date", filters.endDate);
+    if (filters?.category) query = query.eq("category", filters.category);
+    if (filters?.type) query = query.eq("type", filters.type);
+
+    const { data, error } = await query.order("date", { ascending: false });
+    if (error || !data) return [];
+    return data.map((r) => ({
+      id: r.id,
+      amount: r.amount,
+      type: r.type as "income" | "expense",
+      category: r.category,
+      date: r.date,
+      description: r.description ?? null,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at ?? null,
+      recurringFrequency: (r.recurring_frequency as RecurringFrequency) ?? "none",
+      recurringEndDate: r.recurring_end_date ?? null,
+      parentTransactionId: r.parent_transaction_id ?? null,
+    }));
+  }
+};
+
+// ---------------------------------------------------------------------------
+// CRUD Operations
 // ---------------------------------------------------------------------------
 
 export const createTransaction = async (data: Transaction): Promise<Transaction> => {
-  const { data: { user } } = await supabase.auth.getUser();
+  // Use getSession() to avoid failing when offline
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) throw new Error("Authentication required to save transactions.");
 
   const now = new Date().toISOString();
@@ -221,7 +452,8 @@ export const deleteTransaction = async (id: number) => {
     );
     await enqueue("delete", id);
   } catch {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) throw new Error("Authentication required.");
     const { error } = await supabase
       .from("transactions")
@@ -257,7 +489,8 @@ export const updateTransaction = async (id: number, updates: Partial<Transaction
 
     await enqueue("update", id, dbUpdates);
   } catch {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) throw new Error("Authentication required.");
 
     const supabaseUpdates: Record<string, unknown> = {};
@@ -282,10 +515,6 @@ export const updateTransaction = async (id: number, updates: Partial<Transaction
 
 // ---------------------------------------------------------------------------
 // Recurring transaction generation
-// C-02 fix: deduplication now uses parent_transaction_id + date instead of
-// fragile value-matching (amount+type+category+date).
-// H-03 fix: uses shared addPeriod with clampToMonthEnd.
-// M-06 fix: queries only the authenticated user's templates.
 // ---------------------------------------------------------------------------
 
 export const processRecurringTransactions = async (): Promise<number> => {
@@ -293,16 +522,16 @@ export const processRecurringTransactions = async (): Promise<number> => {
   _processing = true;
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) return 0;
 
-    // M-06: filter by user_id to avoid cross-user reads
     const { data: templates, error: fetchError } = await supabase
       .from("transactions")
       .select("id, user_id, amount, type, category, date, description, recurring_frequency, recurring_end_date")
       .eq("user_id", user.id)
       .neq("recurring_frequency", "none")
-      .is("parent_transaction_id", null); // only original templates, not generated copies
+      .is("parent_transaction_id", null);
 
     if (fetchError || !templates || templates.length === 0) return 0;
 
@@ -315,11 +544,10 @@ export const processRecurringTransactions = async (): Promise<number> => {
       const endDate = template.recurring_end_date ? toLocalDate(template.recurring_end_date) : null;
       const templateDate = toLocalDate(template.date);
 
-      // Compute all dates that should have been generated
       const candidateDates: string[] = [];
       let current = addPeriod(templateDate, templateDate, frequency);
       let iterations = 0;
-      const MAX_ITERATIONS = 730; // 2 years maximum catch-up
+      const MAX_ITERATIONS = 730;
 
       while (current <= today && iterations < MAX_ITERATIONS) {
         iterations++;
@@ -330,8 +558,6 @@ export const processRecurringTransactions = async (): Promise<number> => {
 
       if (candidateDates.length === 0) continue;
 
-      // C-02 fix: fetch already-generated occurrences by parent_transaction_id
-      // (not by value-matching which falsely deduplicates unrelated transactions)
       const { data: existing } = await supabase
         .from("transactions")
         .select("date")
@@ -355,7 +581,6 @@ export const processRecurringTransactions = async (): Promise<number> => {
           updated_at: new Date().toISOString(),
           recurring_frequency: "none",
           recurring_end_date: null,
-          // C-02 fix: link generated occurrences back to the template
           parent_transaction_id: template.id,
         })),
       );

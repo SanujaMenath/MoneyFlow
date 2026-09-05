@@ -6,12 +6,18 @@ import AnalyticsDonut from "./components/AnalyticsDonut";
 import SeasonalTrendChart from "./components/SeasonalTrendChart";
 import SavingsGoalCard from "./components/SavingsGoalCard";
 
+import type { FinancialSummary } from "@moneyflow/shared";
+
 interface DashboardViewProps {
   transactions?: Transaction[];
+  summary?: FinancialSummary;
 }
 
-const DashboardView = ({ transactions = [] }: DashboardViewProps) => {
+const DashboardView = ({ transactions = [], summary }: DashboardViewProps) => {
   const stats = useMemo(() => {
+    if (summary) {
+      return summary;
+    }
     return transactions.reduce(
       (acc, t) => {
         if (t.type === "income") {
@@ -25,7 +31,7 @@ const DashboardView = ({ transactions = [] }: DashboardViewProps) => {
       },
       { balance: 0, income: 0, expenses: 0 }
     );
-  }, [transactions]);
+  }, [transactions, summary]);
 
   const healthScore =
     stats.income > 0

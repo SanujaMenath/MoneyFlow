@@ -26,15 +26,16 @@
     "tailwindcss": "^4.2.2"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.0.0",
-    "@rollup/rollup-darwin-x64": "^4.0.0",
     "@rollup/rollup-darwin-arm64": "^4.0.0",
+    "@rollup/rollup-darwin-x64": "^4.0.0",
+    "@rollup/rollup-linux-x64-gnu": "^4.0.0",
     "@rollup/rollup-win32-x64-msvc": "^4.0.0",
-    "@tailwindcss/oxide-linux-x64": "^4.0.0",
     "@tailwindcss/oxide-darwin-arm64": "^4.0.0",
+    "@tailwindcss/oxide-linux-x64": "^4.0.0",
     "@tailwindcss/oxide-win32-x64": "^4.0.0"
   },
   "devDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.60.0",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

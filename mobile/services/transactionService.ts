@@ -2,6 +2,9 @@ import { supabase } from "../lib/supabase";
 import type { Transaction, RecurringFrequency } from "../types/transaction";
 import { fromDB, toDB } from "../types/transaction";
 import { addPeriod, formatDateString, toLocalDate } from "@moneyflow/shared/utils/date";
+import type { FinancialSummary } from "@moneyflow/shared";
+
+export type { FinancialSummary };
 
 // Module-level guard: prevents concurrent recurring-processing runs
 let _processing = false;
@@ -9,6 +12,14 @@ let _processing = false;
 // ---------------------------------------------------------------------------
 // Pagination & read operations
 // ---------------------------------------------------------------------------
+
+export interface TransactionFilters {
+  startDate?: string;
+  endDate?: string;
+  category?: string;
+  type?: "income" | "expense";
+  search?: string;
+}
 
 export interface PaginationResult {
   data: Transaction[];
@@ -18,35 +29,54 @@ export interface PaginationResult {
   totalPages: number;
 }
 
-export const getTransactionCount = async (): Promise<number> => {
+export const getTransactionCount = async (filters?: TransactionFilters): Promise<number> => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return 0;
 
-  const { count, error } = await supabase
+  let query = supabase
     .from("transactions")
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id);
 
+  if (filters?.startDate) query = query.gte("date", filters.startDate);
+  if (filters?.endDate) query = query.lte("date", filters.endDate);
+  if (filters?.category) query = query.eq("category", filters.category);
+  if (filters?.type) query = query.eq("type", filters.type);
+  if (filters?.search) query = query.ilike("description", `%${filters.search}%`);
+
+  const { count, error } = await query;
   if (error) return 0;
   return count ?? 0;
 };
 
-export const getTransactionsPaginated = async (page = 1, pageSize = 50): Promise<PaginationResult> => {
+export const getTransactionsPaginated = async (
+  page = 1,
+  pageSize = 50,
+  filters?: TransactionFilters,
+): Promise<PaginationResult> => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { data: [], total: 0, page, pageSize, totalPages: 0 };
 
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
+  let query = supabase
+    .from("transactions")
+    .select("*")
+    .eq("user_id", user.id);
+
+  if (filters?.startDate) query = query.gte("date", filters.startDate);
+  if (filters?.endDate) query = query.lte("date", filters.endDate);
+  if (filters?.category) query = query.eq("category", filters.category);
+  if (filters?.type) query = query.eq("type", filters.type);
+  if (filters?.search) query = query.ilike("description", `%${filters.search}%`);
+
   const [listResult, countResult] = await Promise.all([
-    supabase
-      .from("transactions")
-      .select("*")
-      .eq("user_id", user.id)
+    query
       .order("date", { ascending: false })
       .order("created_at", { ascending: false })
       .range(from, to),
-    getTransactionCount(),
+    getTransactionCount(filters),
   ]);
 
   if (listResult.error) throw listResult.error;
@@ -58,6 +88,45 @@ export const getTransactionsPaginated = async (page = 1, pageSize = 50): Promise
     pageSize,
     totalPages: Math.max(1, Math.ceil(countResult / pageSize)),
   };
+};
+
+export const getFinancialSummary = async (
+  startDate?: string,
+  endDate?: string,
+): Promise<FinancialSummary> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { balance: 0, income: 0, expenses: 0 };
+
+  try {
+    const { data, error } = await supabase.rpc("get_financial_summary", {
+      p_start_date: startDate || null,
+      p_end_date: endDate || null,
+    });
+
+    if (!error && data) {
+      const income = Number(data.income ?? 0);
+      const expenses = Number(data.expenses ?? 0);
+      const balance = Number(data.balance ?? (income - expenses));
+      return { balance, income, expenses };
+    }
+  } catch {
+    // Fall through
+  }
+
+  let query = supabase.from("transactions").select("type, amount").eq("user_id", user.id);
+  if (startDate) query = query.gte("date", startDate);
+  if (endDate) query = query.lte("date", endDate);
+
+  const { data, error } = await query;
+  if (error || !data) return { balance: 0, income: 0, expenses: 0 };
+
+  let income = 0;
+  let expenses = 0;
+  for (const item of data) {
+    if (item.type === "income") income += item.amount;
+    else if (item.type === "expense") expenses += item.amount;
+  }
+  return { balance: income - expenses, income, expenses };
 };
 
 export const getTransactions = async (): Promise<Transaction[]> => {
