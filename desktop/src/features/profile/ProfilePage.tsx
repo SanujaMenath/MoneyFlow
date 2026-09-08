@@ -269,14 +269,20 @@ const ProfilePage = () => {
     }
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) return;
 
-      const { error: deleteError } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("id", user.id);
-      if (deleteError) throw deleteError;
+      try {
+        await supabase.storage.from("avatars").remove([`${user.id}/avatar.jpg`, `${user.id}/avatar.png`]);
+      } catch {
+        // Ignore avatar removal failure and proceed
+      }
+
+      const { error: rpcError } = await supabase.rpc("delete_user_account");
+      if (rpcError) {
+        await supabase.from("profiles").delete().eq("id", user.id);
+      }
 
       await supabase.auth.signOut();
       window.location.reload();

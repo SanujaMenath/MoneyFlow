@@ -117,11 +117,16 @@ export async function requestAccountDeletion(userId: string, password: string): 
   });
   if (signInError) throw new Error("Password is incorrect");
 
-  const { error: deleteError } = await supabase
-    .from("profiles")
-    .delete()
-    .eq("id", userId);
-  if (deleteError) throw deleteError;
+  try {
+    await deleteAvatar(userId);
+  } catch {
+    // Ignore avatar cleanup failure and proceed
+  }
+
+  const { error: rpcError } = await supabase.rpc("delete_user_account");
+  if (rpcError) {
+    await supabase.from("profiles").delete().eq("id", userId);
+  }
 
   await supabase.auth.signOut();
 }

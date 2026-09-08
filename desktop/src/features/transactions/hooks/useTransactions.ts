@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Session } from "@supabase/supabase-js";
 import type { Transaction } from "../../../types/transaction";
+import type { FinancialSummary } from "@moneyflow/shared";
 import { supabase } from "../../../lib/supabase";
 import { sync } from "../../../lib/syncService";
 import {
@@ -8,8 +9,9 @@ import {
   deleteTransaction,
   updateTransaction,
   processRecurringTransactions,
+  getFinancialSummary,
 } from "../services/transactionService";
-import type { PaginationResult } from "../services/transactionService";
+import type { TransactionFilters } from "../services/transactionService";
 
 const PAGE_SIZE = 50;
 
@@ -19,15 +21,40 @@ export const useTransactions = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [filters, setFiltersState] = useState<TransactionFilters>({});
+  const [summary, setSummary] = useState<FinancialSummary>({ balance: 0, income: 0, expenses: 0 });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
   const pageRef = useRef(page);
-  // H-06: cache the authenticated user id to scope the Realtime filter
+  const filtersRef = useRef(filters);
   const userIdRef = useRef<string | null>(null);
 
-  const refresh = useCallback(async (p = 1) => {
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
+
+  const refreshSummary = useCallback(async (activeFilters?: TransactionFilters) => {
+    try {
+      const f = activeFilters ?? filtersRef.current;
+      const sum = await getFinancialSummary(f.startDate, f.endDate);
+      setSummary(sum);
+    } catch (err) {
+      console.error("Failed to fetch financial summary:", err);
+    }
+  }, []);
+
+  const refresh = useCallback(async (p = 1, customFilters?: TransactionFilters) => {
     setLoading(true);
     try {
-      const result: PaginationResult = await getTransactions(p, PAGE_SIZE);
+      const activeFilters = customFilters ?? filtersRef.current;
+      const [result] = await Promise.all([
+        getTransactions(p, PAGE_SIZE, activeFilters),
+        refreshSummary(activeFilters),
+      ]);
       setTransactions(result.data);
       setTotal(result.total);
       setTotalPages(result.totalPages);
@@ -37,11 +64,16 @@ export const useTransactions = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshSummary]);
 
-  useEffect(() => {
-    pageRef.current = page;
-  }, [page]);
+  const setFilters = useCallback((newFilters: TransactionFilters | ((prev: TransactionFilters) => TransactionFilters)) => {
+    setFiltersState((prev) => {
+      const resolved = typeof newFilters === "function" ? newFilters(prev) : newFilters;
+      filtersRef.current = resolved;
+      refresh(1, resolved);
+      return resolved;
+    });
+  }, [refresh]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -67,9 +99,6 @@ export const useTransactions = () => {
       await sync();
       refresh(1);
 
-      // H-06: resolve user id before creating the Realtime subscription so
-      // we can filter to only this user's rows, preventing spurious refreshes
-      // triggered by other users' changes.
       const { data: { session } } = await supabase.auth.getSession();
       const userId = (session as Session | null)?.user?.id ?? null;
       userIdRef.current = userId;
@@ -124,6 +153,18 @@ export const useTransactions = () => {
     [refresh, page],
   );
 
+  const edit = useCallback(
+    async (id: number, updates: Partial<Transaction>) => {
+      try {
+        await updateTransaction(id, updates);
+        refresh(page);
+      } catch {
+        alert("Failed to update transaction. Please try again.");
+      }
+    },
+    [refresh, page],
+  );
+
   const stopRecurring = useCallback(
     async (id: number) => {
       const confirmed = window.confirm(
@@ -147,10 +188,14 @@ export const useTransactions = () => {
     page,
     totalPages,
     total,
+    filters,
+    setFilters,
+    summary,
     isOnline,
     refresh,
     goToPage,
     remove,
+    edit,
     stopRecurring,
   };
 };
